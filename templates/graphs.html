@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Graphs - SheetGraph{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">
+            <i class="fas fa-chart-bar text-brand-700 mr-2"></i>Graphs - {{ filename }}
+        </h1>
+        <div class="flex space-x-3">
+            <a href="/view/{{ filename }}" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition">
+                <i class="fas fa-table mr-2"></i> View Data
+            </a>
+            <a href="/generate-report/{{ filename }}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                <i class="fas fa-download mr-2"></i> Download Report
+            </a>
+        </div>
+    </div>
+    
+    <!-- Sheet Tabs -->
+    <div class="bg-white rounded-lg shadow-lg p-4 mb-6">
+        <div class="flex flex-wrap gap-2">
+            {% for sheet in sheets %}
+            <a href="/graphs/{{ filename }}?sheet={{ sheet }}" 
+               class="px-4 py-2 rounded-lg transition {% if sheet == current_sheet %}bg-brand-700 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+                {{ sheet }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-gray-500 text-sm">Total Rows</p>
+            <p class="text-xl font-bold text-gray-800">{{ stats.total_rows }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-gray-500 text-sm">Columns</p>
+            <p class="text-xl font-bold text-gray-800">{{ stats.total_columns }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-gray-500 text-sm">Numeric</p>
+            <p class="text-xl font-bold text-gray-800">{{ stats.numeric_columns }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-gray-500 text-sm">Categorical</p>
+            <p class="text-xl font-bold text-gray-800">{{ stats.categorical_columns }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-gray-500 text-sm">Missing Values</p>
+            <p class="text-xl font-bold text-gray-800">{{ stats.missing_values }}</p>
+        </div>
+    </div>
+    
+    <!-- Graphs Grid -->
+    {% if graphs %}
+    <div class="space-y-6">
+        {% if graphs.bar_chart %}
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-chart-bar text-brand-700 mr-2"></i>Bar Chart
+            </h3>
+            <div>{{ graphs.bar_chart | safe }}</div>
+        </div>
+        {% endif %}
+        
+        {% if graphs.line_chart %}
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-chart-line text-brand-700 mr-2"></i>Line Chart
+            </h3>
+            <div>{{ graphs.line_chart | safe }}</div>
+        </div>
+        {% endif %}
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% if graphs.histogram %}
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-chart-area text-brand-700 mr-2"></i>Distribution
+                </h3>
+                <div>{{ graphs.histogram | safe }}</div>
+            </div>
+            {% endif %}
+            
+            {% if graphs.box_plot %}
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-box text-brand-700 mr-2"></i>Box Plot
+                </h3>
+                <div>{{ graphs.box_plot | safe }}</div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% if graphs.pie_chart %}
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-chart-pie text-brand-700 mr-2"></i>Pie Chart
+                </h3>
+                <div>{{ graphs.pie_chart | safe }}</div>
+            </div>
+            {% endif %}
+            
+            {% if graphs.scatter_plot %}
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-braille text-brand-700 mr-2"></i>Scatter Plot
+                </h3>
+                <div>{{ graphs.scatter_plot | safe }}</div>
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if graphs.heatmap %}
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-th text-brand-700 mr-2"></i>Correlation Heatmap
+            </h3>
+            <div>{{ graphs.heatmap | safe }}</div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+        <i class="fas fa-exclamation-triangle text-yellow-600 text-4xl mb-4"></i>
+        <h3 class="text-xl font-semibold text-yellow-800 mb-2">No Graphs Available</h3>
+        <p class="text-yellow-700">The data doesn't contain enough numeric or categorical columns to generate graphs.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

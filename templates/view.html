@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}View Data - SheetGraph{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">
+            <i class="fas fa-table text-brand-700 mr-2"></i>{{ filename }}
+        </h1>
+        <div class="flex space-x-3">
+            <a href="/graphs/{{ filename }}" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition">
+                <i class="fas fa-chart-bar mr-2"></i> View Graphs
+            </a>
+            <a href="/generate-report/{{ filename }}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                <i class="fas fa-download mr-2"></i> Download Report
+            </a>
+        </div>
+    </div>
+    
+    <!-- Sheet Tabs -->
+    <div class="bg-white rounded-lg shadow-lg p-4 mb-6">
+        <div class="flex flex-wrap gap-2">
+            {% for sheet in sheets %}
+            <a href="/view/{{ filename }}?sheet={{ sheet }}" 
+               class="px-4 py-2 rounded-lg transition {% if sheet == current_sheet %}bg-brand-700 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+                {{ sheet }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-gray-500 text-sm">Total Rows</p>
+            <p class="text-2xl font-bold text-gray-800">{{ total_rows }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-gray-500 text-sm">Total Columns</p>
+            <p class="text-2xl font-bold text-gray-800">{{ columns|length }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-gray-500 text-sm">Current Page</p>
+            <p class="text-2xl font-bold text-gray-800">{{ page }} of {{ total_pages }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-gray-500 text-sm">Showing</p>
+            <p class="text-2xl font-bold text-gray-800">1-{{ data|length }}</p>
+        </div>
+    </div>
+    
+    <!-- Data Table -->
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-brand-900">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase">#</th>
+                        {% for col in columns %}
+                        <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase">{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for row in data %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-2 text-sm text-gray-500">{{ loop.index }}</td>
+                        {% for col in columns %}
+                        <td class="px-4 py-2 text-sm text-gray-700">{{ row[col] }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="bg-gray-50 px-4 py-3 flex items-center justify-between border-t">
+            <div class="text-sm text-gray-700">
+                Showing {{ (page - 1) * 50 + 1 }} to {{ [page * 50, total_rows]|min }} of {{ total_rows }} results
+            </div>
+            <div class="flex space-x-2">
+                {% if page > 1 %}
+                <a href="/view/{{ filename }}?sheet={{ current_sheet }}&page={{ page - 1 }}" 
+                   class="px-3 py-1 bg-white border rounded hover:bg-gray-50">Previous</a>
+                {% endif %}
+                
+                {% if page < total_pages %}
+                <a href="/view/{{ filename }}?sheet={{ current_sheet }}&page={{ page + 1 }}" 
+                   class="px-3 py-1 bg-white border rounded hover:bg-gray-50">Next</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

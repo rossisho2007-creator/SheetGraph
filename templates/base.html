@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SheetGraph - Excel to Graph Converter{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            900: '#1B4332',
+                            800: '#2D6A4F',
+                            700: '#40916C',
+                            600: '#52B788',
+                            500: '#74C69D',
+                            400: '#95D5B2',
+                            300: '#B7E4C7',
+                            200: '#D8F3DC',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-brand-900 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="flex items-center">
+                        <i class="fas fa-chart-line text-brand-400 text-2xl mr-3"></i>
+                        <span class="text-white font-bold text-xl">SheetGraph</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-1">
+                    <a href="/" class="text-gray-200 hover:bg-brand-800 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition duration-150">
+                        <i class="fas fa-home mr-1"></i> Home
+                    </a>
+                    <a href="/upload" class="text-gray-200 hover:bg-brand-800 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition duration-150">
+                        <i class="fas fa-upload mr-1"></i> Upload
+                    </a>
+                    {% if files %}
+                    <a href="/view/{{ files[0] }}" class="text-gray-200 hover:bg-brand-800 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition duration-150">
+                        <i class="fas fa-table mr-1"></i> View Data
+                    </a>
+                    <a href="/graphs/{{ files[0] }}" class="text-gray-200 hover:bg-brand-800 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition duration-150">
+                        <i class="fas fa-chart-bar mr-1"></i> Graphs
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div class="max-w-7xl mx-auto px-4 mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="p-4 mb-4 rounded-lg {% if category == 'success' %}bg-green-100 text-green-800 border border-green-300{% elif category == 'error' %}bg-red-100 text-red-800 border border-red-300{% else %}bg-blue-100 text-blue-800 border border-blue-300{% endif %} flex items-center">
+                        <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} mr-3 text-lg"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t mt-12">
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <div class="flex justify-between items-center">
+                <p class="text-gray-500 text-sm">
+                    &copy; 2024 SheetGraph - Professional Excel Visualization Tool
+                </p>
+                <div class="flex space-x-4 text-gray-400">
+                    <a href="/download-template" class="hover:text-brand-700 transition">
+                        <i class="fas fa-download mr-1"></i> Download Template
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

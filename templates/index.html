@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}SheetGraph - Home{% endblock %}
+
+{% block content %}
+<div class="text-center mb-12">
+    <h1 class="text-5xl font-bold text-gray-800 mb-4">
+        Welcome to <span class="text-brand-700">SheetGraph</span>
+    </h1>
+    <p class="text-xl text-gray-600 mb-2">
+        Transform your Excel spreadsheets into professional graphs and reports
+    </p>
+    <p class="text-gray-500">
+        Upload, visualize, and export - all in one place
+    </p>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+    <div class="bg-white rounded-lg shadow-lg p-6 transform hover:scale-105 transition duration-300">
+        <div class="flex items-center">
+            <div class="p-3 bg-brand-200 rounded-full">
+                <i class="fas fa-file-excel text-brand-800 text-2xl"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-gray-500 text-sm">Files Uploaded</p>
+                <p class="text-3xl font-bold text-gray-800">{{ stats.total_files }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-lg p-6 transform hover:scale-105 transition duration-300">
+        <div class="flex items-center">
+            <div class="p-3 bg-brand-200 rounded-full">
+                <i class="fas fa-table text-brand-800 text-2xl"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-gray-500 text-sm">Total Sheets</p>
+                <p class="text-3xl font-bold text-gray-800">{{ stats.total_sheets }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-lg p-6 transform hover:scale-105 transition duration-300">
+        <div class="flex items-center">
+            <div class="p-3 bg-brand-200 rounded-full">
+                <i class="fas fa-database text-brand-800 text-2xl"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-gray-500 text-sm">Total Records</p>
+                <p class="text-3xl font-bold text-gray-800">{{ stats.total_records }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <!-- Upload Card -->
+    <a href="/upload" class="group">
+        <div class="bg-white rounded-lg shadow-lg p-8 border-2 border-transparent hover:border-brand-500 transition duration-300">
+            <div class="text-center">
+                <div class="inline-block p-4 bg-brand-100 rounded-full mb-4 group-hover:bg-brand-200 transition">
+                    <i class="fas fa-cloud-upload-alt text-5xl text-brand-700"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">Upload Excel File</h3>
+                <p class="text-gray-600">
+                    Upload .xlsx, .xls, or .csv files and automatically generate visualizations
+                </p>
+                <ul class="text-left mt-4 space-y-2 text-gray-600">
+                    <li><i class="fas fa-check text-green-500 mr-2"></i> Multiple sheet support</li>
+                    <li><i class="fas fa-check text-green-500 mr-2"></i> Automatic graph generation</li>
+                    <li><i class="fas fa-check text-green-500 mr-2"></i> Data cleaning & validation</li>
+                </ul>
+            </div>
+        </div>
+    </a>
+    
+    <!-- Template Card -->
+    <a href="/download-template" class="group">
+        <div class="bg-white rounded-lg shadow-lg p-8 border-2 border-transparent hover:border-brand-500 transition duration-300">
+            <div class="text-center">
+                <div class="inline-block p-4 bg-brand-100 rounded-full mb-4 group-hover:bg-brand-200 transition">
+                    <i class="fas fa-download text-5xl text-brand-700"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">Download Template</h3>
+                <p class="text-gray-600">
+                    Get started quickly with our pre-formatted Excel template
+                </p>
+                <ul class="text-left mt-4 space-y-2 text-gray-600">
+                    <li><i class="fas fa-check text-green-500 mr-2"></i> Sales data template</li>
+                    <li><i class="fas fa-check text-green-500 mr-2"></i> Inventory tracking</li>
+                    <li><i class="fas fa-check text-green-500 mr-2"></i> Ready-to-use format</li>
+                </ul>
+            </div>
+        </div>
+    </a>
+</div>
+
+<!-- Features -->
+<div class="mt-16">
+    <h2 class="text-3xl font-bold text-center text-gray-800 mb-8">How It Works</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="text-center">
+            <div class="inline-block p-4 bg-brand-100 rounded-full mb-4">
+                <span class="text-3xl font-bold text-brand-700">1</span>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Upload</h3>
+            <p class="text-gray-600">Upload your Excel or CSV file</p>
+        </div>
+        <div class="text-center">
+            <div class="inline-block p-4 bg-brand-100 rounded-full mb-4">
+                <span class="text-3xl font-bold text-brand-700">2</span>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Visualize</h3>
+            <p class="text-gray-600">View interactive graphs and charts</p>
+        </div>
+        <div class="text-center">
+            <div class="inline-block p-4 bg-brand-100 rounded-full mb-4">
+                <span class="text-3xl font-bold text-brand-700">3</span>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Export</h3>
+            <p class="text-gray-600">Download formatted Excel reports</p>
+        </div>
+    </div>
+</div>
+
+<div class="text-center mt-12">
+    <a href="/upload" class="inline-block bg-brand-700 text-white px-8 py-3 rounded-lg font-semibold hover:bg-brand-800 transition duration-300 transform hover:scale-105">
+        <i class="fas fa-rocket mr-2"></i> Get Started Now
+    </a>
+</div>
+{% endblock %}

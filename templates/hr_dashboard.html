@@ -5,12 +5,9 @@
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
     <div>
         <h4 style="color:var(--blue);">🔴 HR Dashboard</h4>
-        <small style="color:#666;">Review & approve branch submissions</small>
+        <small style="color:#666;">Review & manage all submissions</small>
     </div>
-    <div>
-        <span class="badge bg-danger">{{ session.name }}</span>
-        <a href="/logout" class="btn btn-sm btn-outline-secondary ms-2">Logout</a>
-    </div>
+    <span class="badge bg-danger">{{ session.name }}</span>
 </div>
 
 <!-- Stats -->
@@ -20,8 +17,13 @@
     <div class="col-4"><div class="card-stat blue"><small>📊 Total</small><p style="font-size:28px;font-weight:700;">{{ stats.total }}</p></div></div>
 </div>
 
-<!-- Actions -->
-<div class="mb-3"><a href="/export-excel" class="btn-block btn-red"><i class="fas fa-download"></i> Export Excel Report</a></div>
+<!-- Quick Actions -->
+<div class="row g-2 mb-4">
+    <div class="col-6 col-md-3"><a href="/hr/scan" class="btn-block btn-red"><i class="fas fa-camera"></i> Scan Doc</a></div>
+    <div class="col-6 col-md-3"><a href="/hr/import-excel" class="btn-block btn-blue"><i class="fas fa-file-excel"></i> Import Excel</a></div>
+    <div class="col-6 col-md-3"><a href="/hr/export-excel" class="btn-block btn-outline"><i class="fas fa-download"></i> Export All</a></div>
+    <div class="col-6 col-md-3"><a href="/hr/export-approved" class="btn-block btn-outline"><i class="fas fa-check"></i> Export Approved</a></div>
+</div>
 
 <!-- Submissions Table -->
 <div class="card-stat blue" style="text-align:left;">

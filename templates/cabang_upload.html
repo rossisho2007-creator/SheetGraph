@@ -4,17 +4,13 @@
 
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
     <div>
-        <h4 style="color:var(--blue);">🔵 Cabang Upload</h4>
+        <h4 style="color:var(--blue);">🔵 Cabang: {{ session.name }}</h4>
         <small style="color:#666;">Submit new loan applications</small>
-    </div>
-    <div>
-        <span class="badge bg-primary">{{ session.name }}</span>
-        <a href="/logout" class="btn btn-sm btn-outline-secondary ms-2">Logout</a>
     </div>
 </div>
 
 <div class="row g-3">
-    <div class="col-6 col-md-4">
+    <div class="col-6">
         <a href="/cabang/scan" style="text-decoration:none;">
             <div class="card-stat blue" style="padding:40px 20px;">
                 <div style="font-size:48px;">📸</div>
@@ -23,7 +19,7 @@
             </div>
         </a>
     </div>
-    <div class="col-6 col-md-4">
+    <div class="col-6">
         <a href="/cabang/form" style="text-decoration:none;">
             <div class="card-stat" style="padding:40px 20px; border-top-color:var(--blue);">
                 <div style="font-size:48px;">📝</div>
@@ -35,6 +31,6 @@
 </div>
 
 <p class="text-center mt-4" style="color:#999; font-size:13px;">
-    ⚠️ You can only submit data. Contact HR for any questions.
+    ⚠️ You can only submit data. Contact HR for questions.
 </p>
 {% endblock %}

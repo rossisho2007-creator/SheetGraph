@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Scan - HR{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+    <div>
+        <h4 style="color:var(--blue);">📸 Scan Document (HR)</h4>
+        <small style="color:#666;">{{ session.name }} - Auto-approved on submit</small>
+    </div>
+    <a href="/hr" class="btn btn-sm btn-outline-secondary">← Dashboard</a>
+</div>
+
+{% if not parsed %}
+<div class="row g-3 mb-3">
+    <div class="col-6">
+        <div class="upload-box" onclick="document.getElementById('fileInput').click()">
+            <div style="font-size:40px;">📁</div><p style="font-weight:600;">Upload</p>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="upload-box" onclick="startCamera()">
+            <div style="font-size:40px;">📸</div><p style="font-weight:600;">Camera</p>
+        </div>
+    </div>
+</div>
+
+<form method="POST" enctype="multipart/form-data" id="sf" style="display:none;">
+    <input type="file" name="document" id="fileInput" onchange="up(this)">
+</form>
+<input type="file" id="pc" accept="image/*" capture="environment" style="display:none;" onchange="up(this)">
+
+<div id="cam" class="camera-overlay" style="display:none;">
+    <video id="v" autoplay playsinline style="transform: scaleX(-1);"></video>
+    <canvas id="c" style="display:none;"></canvas>
+    <div style="padding:16px;display:flex;gap:8px;">
+        <button onclick="snap()" style="flex:1;padding:14px;background:var(--red);color:white;border:none;border-radius:50px;font-weight:700;">Capture</button>
+        <button onclick="closeCam()" style="flex:1;padding:14px;background:#666;color:white;border:none;border-radius:50px;font-weight:700;">Cancel</button>
+    </div>
+</div>
+<div id="load" style="display:none;text-align:center;padding:40px;"><div style="font-size:48px;">🔍</div><p>Processing...</p></div>
+
+<script>
+let st=null; const isM=/Android|iPhone/i.test(navigator.userAgent);
+function startCamera(){if(isM){document.getElementById('pc').click();return;} openCam();}
+async function openCam(){document.getElementById('cam').style.display='flex';st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});document.getElementById('v').srcObject=st;}
+function closeCam(){if(st){st.getTracks().forEach(t=>t.stop());}document.getElementById('cam').style.display='none';}
+function snap(){const v=document.getElementById('v'),c=document.getElementById('c');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);closeCam();c.toBlob(b=>upFile(new File([b],'p.jpg',{type:'image/jpeg'})),'image/jpeg',0.9);}
+function up(i){if(i.files[0])upFile(i.files[0]);}
+function upFile(f){document.querySelector('.row').style.display='none';document.getElementById('load').style.display='block';const fd=new FormData();fd.append('document',f);fetch('/hr/scan',{method:'POST',body:fd}).then(r=>r.text()).then(h=>{document.querySelector('.main-content').innerHTML=h;});}
+</script>
+
+{% else %}
+<div class="card-stat blue" style="text-align:left;">
+    <h5>✅ Scanned Data</h5>
+    <div class="row g-2 mt-2">
+        {% for k,v in parsed.items() %}
+        <div class="col-6"><small style="color:#999;">{{ k }}</small><br><strong>{{ v }}</strong></div>
+        {% endfor %}
+    </div>
+    {% if calculations %}
+    <div class="mt-2 p-2" style="background:#d4edda;border-radius:8px;">
+        <strong>🧮 Auto-Calculated:</strong> Installment: Rp {{ "{:,.0f}".format(calculations.monthly_installment) }}
+    </div>
+    {% endif %}
+    <button onclick="submitHR()" class="btn-block btn-red mt-3">✅ Submit (Auto-Approved)</button>
+    <a href="/hr/scan" class="btn-block btn-outline mt-2">Scan Again</a>
+</div>
+<script>
+function submitHR(){
+    const d={{ parsed|tojson }};
+    d.nama_lengkap=d.nama_lengkap||'';d.loan_type=d.loan_type||'Regular';
+    d.cabang=d.cabang||'{{ session.name }}';d.document_source='HR Scan';
+    fetch('/api/hr-submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})
+    .then(r=>r.json()).then(res=>{if(res.status=='success'){alert('Submitted & Approved!');window.location.href='/hr';}});
+}
+</script>
+{% endif %}
+{% endblock %}

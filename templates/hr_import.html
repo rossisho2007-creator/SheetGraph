@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Import Excel - HR{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+    <div>
+        <h4 style="color:var(--blue);">📥 Import Existing Excel File</h4>
+        <small style="color:#666;">Upload your existing data file</small>
+    </div>
+    <div>
+        <span class="badge bg-danger">{{ session.name }}</span>
+        <a href="/hr" class="btn btn-sm btn-outline-secondary ms-2">← Dashboard</a>
+    </div>
+</div>
+
+<div class="card-stat blue mb-3" style="text-align:left;">
+    <form method="POST" enctype="multipart/form-data">
+        <div class="upload-box mb-3" onclick="document.getElementById('excelFile').click()">
+            <div style="font-size:48px;">📊</div>
+            <p style="font-weight:600;">Click to Select Excel File</p>
+            <small style="color:#999;">.xlsx .xls .csv</small>
+        </div>
+        <input type="file" name="excel_file" id="excelFile" accept=".xlsx,.xls,.csv" 
+               style="display:none;" onchange="this.form.submit()">
+    </form>
+    
+    <div style="background:#E8F0FE; padding:12px; border-radius:8px; font-size:13px;">
+        <strong>💡 How it works:</strong><br>
+        • Upload your existing Excel file<br>
+        • System auto-detects columns (NPK, KPM ID, Nama, Loan, etc.)<br>
+        • Auto-calculates: Principal, Interest, Installment, Outstanding<br>
+        • All data imported to database for approval tracking
+    </div>
+</div>
+
+{% if results %}
+<div class="card-stat green" style="text-align:left;">
+    <h5>✅ Import Successful!</h5>
+    <p><strong>{{ results.count }}</strong> records imported</p>
+    <p><strong>Columns detected:</strong> {{ results.columns|join(', ') }}</p>
+    
+    {% if results.sample %}
+    <div class="table-responsive mt-2">
+        <table class="table table-sm">
+            <thead><tr><th>NPK</th><th>Name</th><th>Loan</th><th>Installment</th></tr></thead>
+            <tbody>
+                {% for row in results.sample %}
+                <tr>
+                    <td>{{ row.npk }}</td>
+                    <td>{{ row.nama_lengkap }}</td>
+                    <td>Rp {{ "{:,.0f}".format(row.loan_amount|default(0)) }}</td>
+                    <td>Rp {{ "{:,.0f}".format(row.monthly_installment|default(0)) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <a href="/hr" class="btn-block btn-red mt-2">View in Dashboard</a>
+</div>
+{% endif %}
+{% endblock %}

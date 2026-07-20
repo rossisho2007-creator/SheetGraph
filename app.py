@@ -1,7 +1,6 @@
 """
 AutoInput Pro - Dual Role System
-🔵 Cabang: Upload only (can't see submissions)
-🔴 HR: Review & approve (can't upload)
+🔵 Cabang: Upload only  |  🔴 HR: Review & approve
 """
 
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify, session
@@ -21,12 +20,13 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # ═══════════════════════════════════
-# SIMPLE AUTH (for demo - use Azure AD in production)
+# USERS
 # ═══════════════════════════════════
 USERS = {
     'hr': {'password': 'hr123', 'role': 'hr', 'name': 'HR Officer'},
-    'cabang1': {'password': 'cabang123', 'role': 'cabang', 'name': 'Cabang Jakarta South'},
-    'cabang2': {'password': 'cabang123', 'role': 'cabang', 'name': 'Cabang Bandung'},
+    'cabang1': {'password': 'cabang123', 'role': 'cabang', 'name': 'Jakarta South'},
+    'cabang2': {'password': 'cabang123', 'role': 'cabang', 'name': 'Bandung'},
+    'cabang3': {'password': 'cabang123', 'role': 'cabang', 'name': 'Surabaya'},
 }
 
 def login_required(f):
@@ -40,8 +40,8 @@ def login_required(f):
 def hr_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if 'user' not in session or session.get('role') != 'hr':
-            flash('⛔ Access denied. HR only.', 'danger')
+        if session.get('role') != 'hr':
+            flash('⛔ HR access only', 'danger')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
@@ -49,8 +49,8 @@ def hr_required(f):
 def cabang_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if 'user' not in session or session.get('role') != 'cabang':
-            flash('⛔ Access denied.', 'danger')
+        if session.get('role') != 'cabang':
+            flash('⛔ Cabang access only', 'danger')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
@@ -85,69 +85,127 @@ def init_db():
 init_db()
 
 # ═══════════════════════════════════
-# OCR + CALCULATIONS (same as before)
+# OCR + SMART PARSER (Fixed)
 # ═══════════════════════════════════
 COLUMN_PATTERNS = {
-    'npk': [r'(?:NPK|No\.?\s*PK)[\s:]*([A-Za-z0-9\-]+)'],
-    'kpm_id': [r'(?:KPM)[\s:\-]*(\d{10,})'],
-    'nama_lengkap': [r'(?:Nama|Customer|Debitur)[\s:]*([A-Za-z\s\.]{3,50}?)(?:\n|$)'],
-    'loan_amount': [r'(?:Loan|Pinjaman|AF|Plafon)[\s:]*[Rp\.\s]*([\d,\.]+)'],
-    'down_payment': [r'(?:DP|Down\s*Payment|Uang\s*Muka)[\s:]*[Rp\.\s]*([\d,\.]+)'],
-    'total_ar': [r'(?:Total\s*AR|AR|Piutang)[\s:]*[Rp\.\s]*([\d,\.]+)'],
-    'tanggal_mulai': [r'(?:Tanggal|Tgl|Date)[\s:]*(\d{1,2}[\s/\-\.]\d{1,2}[\s/\-\.]\d{2,4})'],
-    'tenure_months': [r'(?:Tenure|Tenor|Jangka)[\s:]*(\d+)'],
-    'loan_type': [r'(?:Type|Jenis|Produk)[\s:]*(Regular|Fleet|Siap\s*Dana|KINTO)'],
-    'interest_rate': [r'(?:Interest|Bunga|Rate)[\s:]*([\d.,]+)\s*%?'],
-    'cabang': [r'(?:Cabang|Branch|Kantor)[\s:]*([A-Za-z\s\-]{3,40}?)(?:\n|$)'],
+    'npk': [r'(?:NPK|No\.?\s*PK|NOPEK)[:\s]*([A-Za-z0-9\-]{2,20})'],
+    'kpm_id': [r'(?:KPM)[:\s\-]*(\d{10,})'],
+    'nama_lengkap': [r'(?:Nama|Customer|Debitur|Name)[:\s]*([A-Za-z\s\.]{3,60}?)(?:\n|$)'],
+    'loan_amount': [r'(?:Loan|Pinjaman|AF|Amount|Plafon|Jumlah)[:\s]*[Rp\.\s]*([\d,\.]{5,})'],
+    'down_payment': [r'(?:DP|Down\s*Payment|Uang\s*Muka|TDP)[:\s]*[Rp\.\s]*([\d,\.]{4,})'],
+    'total_ar': [r'(?:Total\s*AR|AR|Piutang|Outstanding)[:\s]*[Rp\.\s]*([\d,\.]{4,})'],
+    'tanggal_mulai': [r'(?:Tanggal|Tgl|Date|Mulai)[:\s]*(\d{1,2}[\s/\-\.]\d{1,2}[\s/\-\.]\d{2,4})'],
+    'tenure_months': [r'(?:Tenure|Tenor|Jangka|Periode)[:\s]*(\d{1,3})'],
+    'loan_type': [r'(?:Type|Jenis|Produk|Tipe)[:\s]*(Regular|Fleet|Siap\s*Dana|KINTO|Multiguna|Investasi|Modal\s*Kerja)'],
+    'interest_rate': [r'(?:Interest|Bunga|Rate|Suku)[:\s]*([\d.,]{1,5})\s*%?'],
+    'cabang': [r'(?:Cabang|Branch|Kantor|Lokasi)[:\s]*([A-Za-z\s\-]{3,40}?)(?:\n|$)'],
 }
 
+def clean_number(value_str):
+    """Safely convert string to float, return 0 if invalid"""
+    if not value_str or not str(value_str).strip():
+        return 0
+    cleaned = re.sub(r'[^\d]', '', str(value_str))
+    return float(cleaned) if cleaned else 0
+
+def clean_int(value_str):
+    """Safely convert string to int, return 0 if invalid"""
+    if not value_str or not str(value_str).strip():
+        return 0
+    cleaned = re.sub(r'[^\d]', '', str(value_str))
+    return int(cleaned) if cleaned else 0
+
 def ocr_scan_image(image_path):
+    """OCR with error handling"""
     try:
         import pytesseract
         from PIL import Image
-        img = Image.open(image_path).convert('L')
-        return pytesseract.image_to_string(img, lang='eng+ind').strip()
-    except:
+        img = Image.open(image_path).convert('L')  # Grayscale
+        text = pytesseract.image_to_string(img, lang='eng+ind')
+        return text.strip() if text else None
+    except Exception as e:
+        print(f"OCR Error: {e}")
         return None
 
 def smart_parse(text):
-    result, conf = {}, {}
+    """Parse text safely without crashing"""
+    if not text:
+        return {}, {}
+    
+    result = {}
+    confidence = {}
+    
     for field, patterns in COLUMN_PATTERNS.items():
-        for p in patterns:
-            m = re.search(p, text, re.IGNORECASE|re.MULTILINE)
-            if m:
-                v = m.group(1).strip()
-                if field in ['loan_amount','down_payment','total_ar']:
-                    v = float(re.sub(r'[^\d]','',v))
-                elif field == 'tenure_months': v = int(re.sub(r'[^\d]','',v))
-                elif field == 'interest_rate':
-                    v = float(v.replace(',','.'))
-                    if v > 1: v /= 100
-                result[field] = v; conf[field] = 85; break
-    return result, conf
+        for pattern in patterns:
+            try:
+                match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+                if match:
+                    value = match.group(1).strip()
+                    
+                    if not value:
+                        continue
+                    
+                    # Convert based on field type
+                    if field in ['loan_amount', 'down_payment', 'total_ar']:
+                        value = clean_number(value)
+                        if value <= 0:
+                            continue
+                    elif field == 'tenure_months':
+                        value = clean_int(value)
+                        if value <= 0:
+                            continue
+                    elif field == 'interest_rate':
+                        try:
+                            value = float(value.replace(',', '.'))
+                            if value > 1:
+                                value = value / 100
+                        except:
+                            continue
+                    elif field == 'tanggal_mulai':
+                        value = value.replace(' ', '/').replace('-', '/').replace('.', '/')
+                    
+                    result[field] = value
+                    confidence[field] = 85
+                    break  # Found match, skip other patterns
+            except Exception as e:
+                print(f"Parse error for {field}: {e}")
+                continue
+    
+    return result, confidence
 
 def calculate(data):
+    """Safe calculation"""
     try:
-        loan = float(data.get('loan_amount',0))
-        dp = float(data.get('down_payment',0))
-        tenor = int(data.get('tenure_months',12))
-        rate = float(data.get('interest_rate',0.05))
+        loan = float(data.get('loan_amount', 0))
+        dp = float(data.get('down_payment', 0))
+        tenor = int(data.get('tenure_months', 12))
+        rate = float(data.get('interest_rate', 0.05))
+        
+        if loan <= 0 or tenor <= 0:
+            return {}
+        
         principal = loan - dp
-        total_int = principal * rate * (tenor/12)
+        total_int = principal * rate * (tenor / 12)
         monthly = (principal + total_int) / tenor if tenor > 0 else 0
-        return {'principal':round(principal),'total_interest':round(total_int),
-                'monthly_installment':round(monthly),'outstanding_balance':round(principal+total_int)}
-    except: return {}
+        
+        return {
+            'principal': round(principal),
+            'total_interest': round(total_int),
+            'monthly_installment': round(monthly),
+            'outstanding_balance': round(principal + total_int)
+        }
+    except:
+        return {}
 
 # ═══════════════════════════════════
 # ROUTES
 # ═══════════════════════════════════
 
-@app.route('/login', methods=['GET','POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username','').lower()
-        password = request.form.get('password','')
+        username = request.form.get('username', '').lower().strip()
+        password = request.form.get('password', '')
         
         if username in USERS and USERS[username]['password'] == password:
             session['user'] = username
@@ -155,7 +213,6 @@ def login():
             session['name'] = USERS[username]['name']
             flash(f'Welcome, {USERS[username]["name"]}!', 'success')
             
-            # Redirect based on role
             if USERS[username]['role'] == 'hr':
                 return redirect(url_for('hr_dashboard'))
             else:
@@ -191,10 +248,10 @@ def hr_dashboard():
 def approve(id):
     conn = get_db()
     conn.execute("UPDATE submissions SET status_approval='Approved', approved_by=?, approved_date=CURRENT_TIMESTAMP WHERE id=?",
-                 (session.get('name','HR'), id))
+                 (session.get('name', 'HR'), id))
     conn.commit()
     conn.close()
-    return jsonify({'status':'ok'})
+    return jsonify({'status': 'ok'})
 
 @app.route('/api/reject/<int:id>', methods=['POST'])
 @hr_required
@@ -203,7 +260,7 @@ def reject(id):
     conn.execute("UPDATE submissions SET status_approval='Rejected' WHERE id=?", (id,))
     conn.commit()
     conn.close()
-    return jsonify({'status':'ok'})
+    return jsonify({'status': 'ok'})
 
 @app.route('/export-excel')
 @hr_required
@@ -224,7 +281,7 @@ def export():
 def cabang_upload():
     return render_template('cabang_upload.html')
 
-@app.route('/cabang/scan', methods=['GET','POST'])
+@app.route('/cabang/scan', methods=['GET', 'POST'])
 @cabang_required
 def cabang_scan():
     parsed, confidence, raw_text, calculations = None, None, None, None
@@ -234,16 +291,21 @@ def cabang_scan():
         if file and file.filename:
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
             file.save(filepath)
+            
             raw_text = ocr_scan_image(filepath)
+            
             if raw_text:
                 parsed, confidence = smart_parse(raw_text)
                 if parsed:
                     calculations = calculate(parsed)
-                    flash('✅ Document scanned! Verify data below.', 'success')
+                    if calculations:
+                        flash(f'✅ Found {len(parsed)} fields! Verify below.', 'success')
+                    else:
+                        flash('⚠️ Could not calculate metrics. Check loan amount.', 'warning')
                 else:
-                    flash('⚠️ Could not detect data patterns.', 'warning')
+                    flash('⚠️ No data patterns detected. Try a clearer image.', 'warning')
             else:
-                flash('⚠️ OCR failed. Try a clearer image.', 'warning')
+                flash('⚠️ OCR failed. Ensure text is clear and well-lit.', 'warning')
     
     return render_template('cabang_scan.html', parsed=parsed, confidence=confidence,
                          raw_text=raw_text, calculations=calculations)
@@ -258,7 +320,17 @@ def cabang_form():
 def submit():
     try:
         data = request.json
+        if not data:
+            return jsonify({'status': 'error', 'message': 'No data provided'}), 400
+        
+        # Ensure required fields
+        if not data.get('loan_amount') or float(data.get('loan_amount', 0)) <= 0:
+            return jsonify({'status': 'error', 'message': 'Loan amount is required'}), 400
+        
         calculations = calculate(data)
+        if not calculations:
+            return jsonify({'status': 'error', 'message': 'Calculation failed'}), 400
+        
         data.update(calculations)
         
         conn = get_db()
@@ -268,21 +340,23 @@ def submit():
              principal, total_interest, monthly_installment, outstanding_balance,
              submitted_by, document_source, ocr_confidence)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-            (data.get('npk'), data.get('kpm_id'), data.get('nama_lengkap'),
-             data.get('loan_amount'), data.get('down_payment'), data.get('total_ar'),
-             data.get('tanggal_mulai'), data.get('tenure_months'), data.get('loan_type'),
-             data.get('interest_rate'), data.get('cabang'),
-             data.get('principal'), data.get('total_interest'),
-             data.get('monthly_installment'), data.get('outstanding_balance'),
-             session.get('name','Cabang'), data.get('document_source','Manual'),
-             data.get('ocr_confidence',100)))
+            (data.get('npk', ''), data.get('kpm_id', ''), data.get('nama_lengkap', ''),
+             data.get('loan_amount', 0), data.get('down_payment', 0),
+             data.get('total_ar', 0), data.get('tanggal_mulai', ''),
+             data.get('tenure_months', 12), data.get('loan_type', 'Regular'),
+             data.get('interest_rate', 0.05), data.get('cabang', session.get('name', '')),
+             data.get('principal', 0), data.get('total_interest', 0),
+             data.get('monthly_installment', 0), data.get('outstanding_balance', 0),
+             session.get('name', 'Cabang'), data.get('document_source', 'Manual'),
+             data.get('ocr_confidence', 100)))
         conn.commit()
         conn.close()
-        return jsonify({'status':'success','calculations':calculations})
+        
+        return jsonify({'status': 'success', 'calculations': calculations})
     except Exception as e:
-        return jsonify({'status':'error','message':str(e)}),500
+        print(f"Submit error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# Default redirect
 @app.route('/')
 def index():
     if 'user' in session:

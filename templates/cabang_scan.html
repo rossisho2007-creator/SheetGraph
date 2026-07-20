@@ -29,7 +29,7 @@
 <input type="file" id="pc" accept="image/*" capture="environment" style="display:none;" onchange="up(this)">
 
 <div id="cam" class="camera-overlay" style="display:none;">
-    <video id="v" autoplay playsinline></video>
+    <video id="v" autoplay playsinline style="transform: scaleX(-1);"></video>
     <canvas id="c" style="display:none;"></canvas>
     <div style="padding:16px;display:flex;gap:8px;">
         <button onclick="snap()" style="flex:1;padding:14px;background:var(--red);color:white;border:none;border-radius:50px;font-weight:700;">Capture</button>

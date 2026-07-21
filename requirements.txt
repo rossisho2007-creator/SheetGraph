@@ -6,3 +6,4 @@ pillow==10.2.0
 gunicorn==21.2.0
 werkzeug==3.0.1
 easyocr==1.7.1
+pytesseract

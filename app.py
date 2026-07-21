@@ -263,6 +263,115 @@ def export_approved():
     if session.get('role') not in ['hr','manager']: return redirect(url_for('dashboard'))
     return send_file(generate_excel('approved'), download_name=f'Approved_{datetime.now().strftime("%Y%m%d")}.xlsx')
 
+
+@app.route('/export-edlin/<int:id>')
+@login_required
+def export_edlin(id):
+    """Generate EDLIN-formatted Excel matching their exact template"""
+    if session.get('role') not in ['hr','manager']:
+        return redirect(url_for('dashboard'))
+    
+    conn = get_db()
+    sub = dict(conn.execute("SELECT * FROM submissions WHERE id=?", (id,)).fetchone())
+    conn.close()
+    
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
+    from openpyxl.utils import get_column_letter
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "EDLIN Calculation"
+    
+    # Inputs
+    otr = float(sub.get('loan_amount', 24389653))
+    dp = float(sub.get('down_payment', 6000000))
+    tenor = int(sub.get('tenure_months', 36))
+    rate = 0.069  # COF + 1% = 6.9%
+    monthly_rate = rate / 12
+    insurance = otr * 0.053  # ~5.3% insurance
+    
+    sisa = otr - dp
+    total_principal = sisa + insurance
+    monthly_installment = round(-1 * (total_principal * monthly_rate * (1 + monthly_rate)**tenor) / ((1 + monthly_rate)**tenor - 1), 0)
+    total_ar = monthly_installment * tenor
+    total_interest = total_ar - total_principal
+    
+    # Style
+    bold = Font(bold=True, size=11)
+    title_font = Font(bold=True, size=14)
+    header_fill = PatternFill(start_color='F2F2F2', end_color='F2F2F2', fill_type='solid')
+    currency_fmt = '#,##0'
+    
+    # Title
+    ws['A1'] = 'Skema Jurnal EDLIN'
+    ws['A1'].font = title_font
+    
+    # Employee info
+    ws['A2'] = 'Nama Karyawan'
+    ws['B2'] = sub.get('nama_lengkap', '')
+    ws['A3'] = 'NPK'
+    ws['B3'] = sub.get('npk', '')
+    
+    # Financial inputs
+    row = 5
+    data = [
+        ('OTR', otr), ('DP (min 10%)', dp), ('Sisa', sisa),
+        ('Insurance', insurance), ('Total Principal', total_principal),
+        ('Interest', total_interest), ('Total AR', total_ar),
+        ('Rate', rate), ('Tenor', tenor),
+        ('Bunga per bulan', monthly_rate), ('Angsuran total anuitas', monthly_installment)
+    ]
+    for label, value in data:
+        ws[f'A{row}'] = label
+        ws[f'B{row}'] = value
+        ws[f'B{row}'].number_format = currency_fmt
+        row += 2
+    
+    # Amortization header
+    row = 29
+    headers = ['Month', 'Principal', 'Interest', 'Installment', 'Balance']
+    for i, h in enumerate(headers):
+        cell = ws.cell(row=row, column=i+1, value=h)
+        cell.font = bold
+        cell.fill = header_fill
+    
+    # Amortization schedule
+    balance = total_principal
+    total_principal_paid = 0
+    total_interest_paid = 0
+    
+    ws.cell(row=row+1, column=5, value=balance).number_format = currency_fmt  # Month 0
+    
+    for month in range(1, tenor + 1):
+        r = row + 1 + month
+        interest_payment = balance * monthly_rate
+        principal_payment = monthly_installment - interest_payment
+        balance = round(balance - principal_payment, 0)
+        
+        ws.cell(row=r, column=1, value=month)
+        ws.cell(row=r, column=2, value=round(principal_payment)).number_format = currency_fmt
+        ws.cell(row=r, column=3, value=round(interest_payment)).number_format = currency_fmt
+        ws.cell(row=r, column=4, value=monthly_installment).number_format = currency_fmt
+        ws.cell(row=r, column=5, value=max(0, balance)).number_format = currency_fmt
+        
+        total_principal_paid += principal_payment
+        total_interest_paid += interest_payment
+    
+    # Sum row
+    sum_row = row + 2 + tenor
+    ws.cell(row=sum_row, column=2, value=round(total_principal_paid)).number_format = currency_fmt
+    ws.cell(row=sum_row, column=3, value=round(total_interest_paid)).number_format = currency_fmt
+    ws.cell(row=sum_row, column=2).font = bold
+    ws.cell(row=sum_row, column=3).font = bold
+    
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return send_file(output, download_name=f'EDLIN_{sub.get("npk","")}_{sub.get("nama_lengkap","")}.xlsx',
+                    mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
 @app.route('/')
 def index():
     if 'user' in session: return redirect(url_for('dashboard'))

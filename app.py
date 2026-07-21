@@ -62,15 +62,23 @@ KNOWN_BRANCHES = ['Jakarta Pusat','Jakarta Selatan','Jakarta Utara','Bandung','S
 
 def do_ocr(path):
     try:
-        from PIL import Image, ImageEnhance
-        import pytesseract
-        img = Image.open(path)
-        if img.width > 2000: r = 2000/img.width; img = img.resize((2000, int(img.height*r)))
-        img = img.convert('L')
-        img = ImageEnhance.Contrast(img).enhance(3.0)
-        img = ImageEnhance.Sharpness(img).enhance(2.0)
-        return pytesseract.image_to_string(img, lang='eng+ind', config='--psm 6').strip()
-    except: return ''
+        import easyocr
+        reader = easyocr.Reader(['id', 'en'])  # Indonesian + English
+        results = reader.readtext(path)
+        text = ' '.join([r[1] for r in results])
+        return text.strip()
+    except:
+        # Fallback to pytesseract if available
+        try:
+            from PIL import Image, ImageEnhance
+            import pytesseract
+            img = Image.open(path)
+            if img.width > 2000: r = 2000/img.width; img = img.resize((2000, int(img.height*r)))
+            img = img.convert('L')
+            img = ImageEnhance.Contrast(img).enhance(3.0)
+            img = ImageEnhance.Sharpness(img).enhance(2.0)
+            return pytesseract.image_to_string(img, lang='eng+ind', config='--psm 6').strip()
+        except: return ''
 
 def smart_parse(text):
     if not text: return {}, {}, text

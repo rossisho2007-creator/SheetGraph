@@ -1,5 +1,5 @@
 """
-SheetGraph Enterprise - 1400+ Employees | 42 Branches Nationwide
+AutoScanner Enterprise - 1400+ Employees | 42 Branches Nationwide
 NPK Authentication | Post-Scan Editing | Audit Trail | Regional Analytics
 Production-Ready for TAF Indonesia
 """
@@ -14,7 +14,7 @@ from io import BytesIO
 from functools import wraps
 import secrets
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 CORS(app)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -31,41 +31,6 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 # - Must be in employee database
 # - Maps to branch, region, role, access level
 
-def validate_npk(npk):
-    """Validate NPK against employee database"""
-    npk = str(npk).strip()
-    if not re.match(r'^\d{4,6}$', npk):
-        return False, "NPK must be 4-6 digits"
-    
-    # In production: query HR database
-    # For demo: accept any valid-format NPK with auto-assignment
-    return True, None
-
-# ═══════════════════════════════════════════════════════════
-# TAF NATIONWIDE STRUCTURE
-# ═══════════════════════════════════════════════════════════
-
-TAF_REGIONS = {
-    'SUMATRA': ['Banda Aceh', 'Medan', 'Medan - Iskandar', 'Padang', 'Pekanbaru',
-                'Batam', 'Duri', 'Jambi', 'Palembang', 'Lampung', 'Bengkulu'],
-    'JAVA_BARAT': ['Jakarta Central', 'Jakarta South', 'Jakarta North', 'Kelapa Gading',
-                   'Bandung', 'Bekasi', 'Bekasi - Revo Town', 'Bogor', 'Depok',
-                   'Tangerang', 'BSD City', 'Karawang', 'Cirebon', 'Serang'],
-    'JAVA_TIMUR': ['Semarang 3', 'Yogyakarta', 'Tegal', 'Surabaya - Merr',
-                   'Surabaya - Puncak Permai', 'Malang', 'Kediri', 'Jember'],
-    'KALIMANTAN': ['Balikpapan', 'Samarinda', 'Banjarmasin', 'Pontianak'],
-    'SULAWESI': ['Makassar', 'Manado', 'Kendari', 'Palu'],
-    'BALI_NUSA': ['Denpasar']
-}
-
-ALL_BRANCHES = []
-for region, branches in TAF_REGIONS.items():
-    for branch in branches:
-        ALL_BRANCHES.append({'region': region, 'branch': branch})
-
-# ═══════════════════════════════════════════════════════════
-# DATABASE WITH FULL AUDIT TRAIL
-# ═══════════════════════════════════════════════════════════
 
 def get_db():
     conn = sqlite3.connect('taf_enterprise.db')
@@ -281,7 +246,7 @@ def login():
             flash(f'✅ Welcome! NPK: {npk}', 'success')
             return redirect(url_for('dashboard'))
         flash(f'❌ {error}', 'danger')
-    return render_template('login.html', branches=ALL_BRANCHES, regions=TAF_REGIONS)
+    return render_template('login.html', branches=ALL_BRANCHES, TAF_REGIONS=TAF_REGIONS)
 
 @app.route('/logout')
 def logout():
@@ -482,6 +447,6 @@ def index():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    print("🏢 TAF SheetGraph Enterprise - 1400+ Employees")
+    print("🏢 TAF AutoScanner Enterprise - 1400+ Employees")
     print(f"📍 {len(TAF_REGIONS)} regions, {len(ALL_BRANCHES)} branches")
     app.run(debug=True, host='0.0.0.0', port=5000)

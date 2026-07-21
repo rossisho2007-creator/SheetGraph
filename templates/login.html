@@ -1,32 +1,101 @@
 {% extends "base.html" %}
-{% block title %}Login - AutoInput Pro{% endblock %}
+{% block title %}Login - TAF AutoScanner{% endblock %}
 {% block content %}
-<div style="max-width:400px; margin:60px auto;">
-    <div class="text-center mb-4">
-        <div style="font-size:48px;">🔐</div>
-        <h3 style="color:var(--blue);">AutoInput Pro</h3>
-        <p style="color:#666;">Sign in to continue</p>
+
+<div style="max-width:450px; margin:20px auto;">
+    <div class="text-center mb-3">
+        <span class="logo-container" style="display:inline-block; background:white; padding:8px 16px; border-radius:8px;">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="TAF" style="max-height:45px;" onerror="this.style.display='none'">
+        </span>
+        <h3 style="color:var(--blue); margin-top:10px;">TAF AutoScanner</h3>
+        <p style="color:#666; font-size:13px;">Document Scanning & Processing System</p>
     </div>
-    
+
     <div class="card-stat blue" style="text-align:left;">
         <form method="POST">
+            <!-- Username / NPK -->
             <div class="mb-3">
-                <label class="form-label fw-bold">Username</label>
-                <input type="text" name="username" class="form-control" required autofocus>
+                <label class="form-label fw-bold">👤 Username / NPK</label>
+                <input type="text" name="username" class="form-control form-control-lg" 
+                       placeholder="Enter username or NPK number" required autofocus
+                       style="font-size:16px; text-align:center;">
+                <small style="color:#999;">Any 2+ characters accepted</small>
             </div>
+            
+            <!-- Name (optional for non-demo) -->
             <div class="mb-3">
-                <label class="form-label fw-bold">Password</label>
-                <input type="password" name="password" class="form-control" required>
+                <label class="form-label fw-bold">📛 Display Name <small style="color:#999;">(optional)</small></label>
+                <input type="text" name="name" class="form-control" 
+                       placeholder="Your full name">
             </div>
-            <button type="submit" class="btn-block btn-red">Sign In</button>
+            
+            <!-- Password (only needed for demo accounts) -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">🔒 Password <small style="color:#999;">(for demo accounts)</small></label>
+                <input type="password" name="password" class="form-control" 
+                       placeholder="Leave blank if using NPK login">
+            </div>
+            
+            <!-- Role Selection -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">👔 Role</label>
+                <select name="role" class="form-control">
+                    <option value="staff">Staff / FRO / CSO</option>
+                    <option value="manager">Manager / BM / SAH / SEH</option>
+                    <option value="hr">HR Department</option>
+                </select>
+            </div>
+            
+            <!-- Branch Selection -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">🏢 Cabang (Branch)</label>
+                <select name="branch" class="form-control">
+                    <option value="">Select branch...</option>
+                    <optgroup label="━━ SUMATRA ━━">
+                        <option>Banda Aceh</option><option>Medan</option><option>Medan - Iskandar</option>
+                        <option>Padang</option><option>Pekanbaru</option><option>Batam</option>
+                        <option>Duri</option><option>Jambi</option><option>Palembang</option>
+                        <option>Lampung</option><option>Bengkulu</option>
+                    </optgroup>
+                    <optgroup label="━━ JAKARTA & JAVA BARAT ━━">
+                        <option>Jakarta Central</option><option>Jakarta South</option>
+                        <option>Jakarta North</option><option>Kelapa Gading</option>
+                        <option>Bandung</option><option>Bekasi</option><option>Bekasi - Revo Town</option>
+                        <option>Bogor</option><option>Depok</option><option>Tangerang</option>
+                        <option>BSD City</option><option>Karawang</option><option>Cirebon</option>
+                        <option>Serang</option>
+                    </optgroup>
+                    <optgroup label="━━ JAVA TENGAH & TIMUR ━━">
+                        <option>Semarang 3</option><option>Yogyakarta</option><option>Tegal</option>
+                        <option>Surabaya - Merr</option><option>Surabaya - Puncak Permai</option>
+                        <option>Malang</option><option>Kediri</option><option>Jember</option>
+                    </optgroup>
+                    <optgroup label="━━ KALIMANTAN ━━">
+                        <option>Balikpapan</option><option>Samarinda</option>
+                        <option>Banjarmasin</option><option>Pontianak</option>
+                    </optgroup>
+                    <optgroup label="━━ SULAWESI ━━">
+                        <option>Makassar</option><option>Manado</option>
+                        <option>Kendari</option><option>Palu</option>
+                    </optgroup>
+                    <optgroup label="━━ BALI & NUSA TENGGARA ━━">
+                        <option>Denpasar</option>
+                    </optgroup>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn-block btn-red" style="font-size:16px;">
+                <i class="fas fa-sign-in-alt"></i> Sign In
+            </button>
         </form>
     </div>
     
-    <div class="text-center mt-4">
-        <small style="color:#999;">
-            <strong>Demo Accounts:</strong><br>
-            🔴 HR: <code>hr</code> / <code>hr123</code><br>
-            🔵 Cabang: <code>cabang1</code> / <code>cabang123</code>
+    <div class="text-center mt-3">
+        <small style="color:#666;">
+            <strong>🔑 Demo Accounts (use password):</strong><br>
+            <code>hr</code> / <code>hr123</code> &nbsp;|&nbsp; 
+            <code>manager</code> / <code>mgr123</code> &nbsp;|&nbsp; 
+            <code>staff</code> / <code>staff123</code>
         </small>
     </div>
 </div>

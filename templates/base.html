@@ -4,74 +4,113 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>{% block title %}AutoInput Pro{% endblock %}</title>
+    <meta name="theme-color" content="#FFFFFF">
+    <title>{% block title %}TAF AutoScanner{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        :root { --red: #DC3545; --blue: #1A3A5C; --light: #F5F6FA; }
+        :root { --red: #DC3545; --blue: #1A3A5C; --white: #FFFFFF; --light-gray: #F8F9FA; --border: #E5E7EB; }
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--light); min-height: 100vh; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #FFFFFF;  /* PURE WHITE */
+            min-height: 100vh; 
+            color: #333;
+        }
         
-        .navbar { background: white; border-bottom: 3px solid var(--red); padding: 10px 16px; position: sticky; top: 0; z-index: 100; }
-        .navbar-brand { font-weight: 700; font-size: 20px; color: var(--blue); text-decoration: none; }
-        .navbar-brand span { color: var(--red); }
+        .navbar { 
+            background: #FFFFFF; 
+            border-bottom: 1px solid var(--border); 
+            padding: 10px 16px; 
+            position: sticky; 
+            top: 0; 
+            z-index: 100; 
+        }
+        .navbar-inner { display:flex; justify-content:space-between; align-items:center; max-width:1000px; margin:0 auto; }
+        .navbar-brand { font-weight: 700; font-size: 18px; color: var(--blue); text-decoration: none; display: flex; align-items: center; gap: 10px; }
         
         .desktop-nav { display: none; }
         @media (min-width: 768px) {
-            .desktop-nav { display: flex; gap: 8px; }
-            .desktop-nav a { padding: 8px 18px; border-radius: 8px; text-decoration: none; color: #555; font-weight: 500; font-size: 14px; transition: .2s; }
-            .desktop-nav a:hover { background: #f0f0f0; }
-            .desktop-nav a.active, .desktop-nav a.btn-nav { background: var(--blue); color: white; }
-            .desktop-nav a.btn-nav-red { background: var(--red); color: white; }
+            .desktop-nav { display: flex; gap: 6px; }
+            .desktop-nav a { padding: 8px 16px; border-radius: 8px; text-decoration: none; color: #555; font-weight: 500; font-size: 14px; transition: .2s; }
+            .desktop-nav a:hover { background: var(--light-gray); }
         }
         
-        .mobile-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e0e0e0; display: flex; justify-content: space-around; padding: 6px 0; z-index: 100; }
-        .mobile-nav a { text-decoration: none; color: #888; text-align: center; font-size: 10px; padding: 4px; }
-        .mobile-nav a i { font-size: 20px; display: block; margin-bottom: 2px; }
-        .mobile-nav a.active { color: var(--red); }
+        .mobile-nav { 
+            position: fixed; bottom: 0; left: 0; right: 0; 
+            background: #FFFFFF; 
+            border-top: 1px solid var(--border); 
+            display: flex; justify-content: space-around; 
+            padding: 4px 0 8px; z-index: 100; 
+        }
+        .mobile-nav a { text-decoration: none; color: #888; text-align: center; font-size: 10px; padding: 2px 8px; }
+        .mobile-nav a i { font-size: 20px; display: block; margin-bottom: 1px; }
         @media (min-width: 768px) { .mobile-nav { display: none; } }
         
         .main-content { padding: 16px; max-width: 1000px; margin: 0 auto; }
         @media (min-width: 768px) { .main-content { padding: 30px; } }
+        @media (max-width: 767px) { .main-content { padding: 12px; padding-bottom: 70px; } }
         
-        .card-stat { background: white; border-radius: 12px; padding: 20px; border-top: 4px solid var(--red); text-align: center; }
+        .card-stat { 
+            background: #FFFFFF; 
+            border: 1px solid var(--border);
+            border-radius: 12px; 
+            padding: 20px; 
+            border-top: 4px solid var(--red); 
+            text-align: center; 
+        }
+        @media (max-width: 767px) { .card-stat { padding: 14px; } }
         .card-stat.blue { border-top-color: var(--blue); }
         .card-stat.green { border-top-color: #28A745; }
         .card-stat.yellow { border-top-color: #FFC107; }
         
         .btn-block { display: block; width: 100%; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 16px; border: none; cursor: pointer; text-align: center; text-decoration: none; transition: .2s; }
+        @media (max-width: 767px) { .btn-block { padding: 12px; font-size: 14px; } }
         .btn-red { background: var(--red); color: white; }
         .btn-blue { background: var(--blue); color: white; }
-        .btn-outline { background: white; color: var(--blue); border: 2px solid var(--blue); }
+        .btn-outline { background: #FFFFFF; color: var(--blue); border: 2px solid var(--blue); }
+        button, .btn, a.btn-block { min-height: 44px; }
         
-        .upload-box { border: 3px dashed #ccc; border-radius: 16px; padding: 40px 20px; text-align: center; cursor: pointer; transition: .3s; background: #fafbfc; }
-        .upload-box:active, .upload-box:hover { border-color: var(--red); background: #fff5f5; }
+        .upload-box { 
+            border: 2px dashed var(--border); 
+            border-radius: 12px; 
+            padding: 40px 20px; 
+            text-align: center; 
+            cursor: pointer; 
+            transition: .3s; 
+            background: var(--light-gray); 
+        }
+        @media (max-width: 767px) { .upload-box { padding: 30px 15px; } }
+        .upload-box:active, .upload-box:hover { border-color: var(--red); background: #FFF5F5; }
         
         .camera-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: black; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .camera-overlay video { width: 100%; max-height: 70vh; object-fit: cover; }
         
         .table-responsive { -webkit-overflow-scrolling: touch; }
-        .flash-msg { padding: 12px 16px; border-radius: 10px; margin-bottom: 12px; animation: slideDown .3s; }
-        @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+        input, select, textarea { font-size: 16px; }
+        
+        .form-control, .form-select { border: 1px solid var(--border); border-radius: 8px; }
+        .form-control:focus, .form-select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,58,92,0.1); }
     </style>
 </head>
 <body>
     <nav class="navbar">
-        <div style="display:flex; justify-content:space-between; align-items:center; max-width:1000px; margin:0 auto;">
-            <a href="/" class="navbar-brand"><i class="fas fa-chart-line" style="color:var(--red);"></i> Auto<span>Input</span> Pro</a>
-            
+        <div class="navbar-inner">
+            <a href="/dashboard" class="navbar-brand">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="TAF" style="height:32px;" onerror="this.style.display='none'">
+                TAF AutoScanner
+            </a>
             <div class="desktop-nav">
-                {% if session.role == 'hr' %}
-                    <a href="/hr"><i class="fas fa-chart-pie"></i> Dashboard</a>
-                    <a href="/hr/scan"><i class="fas fa-camera"></i> Scan</a>
-                    <a href="/hr/import-excel"><i class="fas fa-file-excel"></i> Import</a>
-                    <a href="/hr/export-excel" class="btn-nav-red"><i class="fas fa-download"></i> Export</a>
-                {% elif session.role == 'cabang' %}
-                    <a href="/cabang"><i class="fas fa-home"></i> Home</a>
-                    <a href="/cabang/scan"><i class="fas fa-camera"></i> Scan</a>
-                    <a href="/cabang/form"><i class="fas fa-edit"></i> Form</a>
+                {% if session.user %}
+                <a href="/dashboard">📊 Dashboard</a>
+                <a href="/scan">📸 Scan</a>
+                <a href="/form">📝 Form</a>
+                {% if session.role in ['hr','manager'] %}
+                <a href="/export-excel">📥 Export</a>
                 {% endif %}
-                <a href="/logout" class="btn-nav-red"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                <a href="/logout" style="color:var(--red);">Logout</a>
+                {% endif %}
             </div>
         </div>
     </nav>
@@ -79,24 +118,25 @@
     <div class="main-content">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% for cat, msg in messages %}
-                <div class="flash-msg alert alert-{{ 'success' if cat=='success' else 'warning' if cat=='warning' else 'danger' }}">{{ msg }}</div>
+                <div class="alert alert-{{ 'success' if cat=='success' else 'warning' if cat=='warning' else 'danger' }} alert-dismissible fade show" role="alert">
+                    {{ msg }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
             {% endfor %}
         {% endwith %}
         {% block content %}{% endblock %}
     </div>
     
+    {% if session.user %}
     <div class="mobile-nav">
-        {% if session.role == 'hr' %}
-            <a href="/hr"><i class="fas fa-chart-pie"></i> Dashboard</a>
-            <a href="/hr/scan"><i class="fas fa-camera"></i> Scan</a>
-            <a href="/hr/import-excel"><i class="fas fa-file-excel"></i> Import</a>
-            <a href="/hr/export-excel"><i class="fas fa-download"></i> Export</a>
-        {% elif session.role == 'cabang' %}
-            <a href="/cabang"><i class="fas fa-home"></i> Home</a>
-            <a href="/cabang/scan"><i class="fas fa-camera"></i> Scan</a>
-            <a href="/cabang/form"><i class="fas fa-edit"></i> Form</a>
+        <a href="/dashboard"><i class="fas fa-chart-pie"></i>Home</a>
+        <a href="/scan"><i class="fas fa-camera"></i>Scan</a>
+        <a href="/form"><i class="fas fa-edit"></i>Form</a>
+        {% if session.role in ['hr','manager'] %}
+        <a href="/export-excel"><i class="fas fa-download"></i>Export</a>
         {% endif %}
     </div>
+    {% endif %}
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

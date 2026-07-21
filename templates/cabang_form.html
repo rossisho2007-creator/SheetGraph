@@ -1,10 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Form - Cabang{% endblock %}
+{% block title %}Online Form - TAF AutoInput{% endblock %}
 {% block content %}
 
 <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
-    <div><h4 style="color:var(--blue);">📝 Online Form</h4><small style="color:#666;">{{ session.name }}</small></div>
-    <a href="/cabang" class="btn btn-sm btn-outline-secondary">← Back</a>
+    <div>
+        <h4 style="color:var(--blue);">📝 Online Submission Form</h4>
+        <small style="color:#666;">{{ session.name }} | {{ session.branch }}</small>
+    </div>
+    <a href="/dashboard" class="btn btn-sm btn-outline-secondary">← Back</a>
 </div>
 
 <div class="card-stat blue" style="text-align:left;">
@@ -24,162 +27,81 @@
             </div>
             <div class="col-6">
                 <label class="form-label fw-bold" style="font-size:12px;">Loan Amount (Rp)</label>
-                <input type="number" name="loan_amount" class="form-control" required 
-                       oninput="calculateLive()" id="loan_amount" placeholder="200000000">
+                <input type="number" name="loan_amount" class="form-control" required oninput="calcLive()" id="loan">
             </div>
             <div class="col-6">
                 <label class="form-label fw-bold" style="font-size:12px;">Down Payment (Rp)</label>
-                <input type="number" name="down_payment" class="form-control" required 
-                       oninput="calculateLive()" id="down_payment" placeholder="40000000">
-            </div>
-            <div class="col-6">
-                <label class="form-label fw-bold" style="font-size:12px;">Total AR</label>
-                <input type="number" name="total_ar" class="form-control" required>
+                <input type="number" name="down_payment" class="form-control" required oninput="calcLive()" id="dp">
             </div>
             <div class="col-6">
                 <label class="form-label fw-bold" style="font-size:12px;">Tanggal Mulai</label>
                 <input type="date" name="tanggal_mulai" class="form-control" required>
             </div>
-            <div class="col-4">
-                <label class="form-label fw-bold" style="font-size:12px;">Tenor (Bulan)</label>
-                <input type="number" name="tenure_months" class="form-control" value="36" 
-                       oninput="calculateLive()" id="tenure_months">
+            <div class="col-3">
+                <label class="form-label fw-bold" style="font-size:12px;">Tenor</label>
+                <input type="number" name="tenure_months" class="form-control" value="36" oninput="calcLive()" id="tenor">
             </div>
-            <div class="col-4">
-                <label class="form-label fw-bold" style="font-size:12px;">Loan Type</label>
-                <select name="loan_type" class="form-control">
-                    <option>Regular</option><option>Fleet</option><option>Siap Dana</option><option>KINTO</option>
-                </select>
-            </div>
-            <div class="col-4">
-                <label class="form-label fw-bold" style="font-size:12px;">Interest Rate (%)</label>
-                <input type="number" name="interest_rate" class="form-control" value="5" step="0.1" 
-                       oninput="calculateLive()" id="interest_rate">
+            <div class="col-3">
+                <label class="form-label fw-bold" style="font-size:12px;">Rate %</label>
+                <input type="number" name="interest_rate" class="form-control" value="5" step="0.1" oninput="calcLive()" id="rate">
             </div>
             <div class="col-12">
-                <label class="form-label fw-bold" style="font-size:12px;">Cabang</label>
-                <input type="text" name="cabang" class="form-control" value="{{ session.name }}" required>
+                <label class="form-label fw-bold" style="font-size:12px;">Loan Type</label>
+                <select name="loan_type" class="form-control">
+                    <option>Kredit Kepemilikan Motor</option>
+                    <option>Regular</option><option>Fleet</option>
+                </select>
             </div>
         </div>
         
-        <!-- LIVE CALCULATION PREVIEW -->
-        <div id="liveCalc" style="display:none; margin-top:16px; padding:16px; background:linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius:12px; border:2px solid #86efac;">
-            <h6 style="color:#166534; margin-bottom:12px;">🧮 Live Calculation Preview</h6>
-            <div class="row g-2">
-                <div class="col-6">
-                    <small style="color:#666;">Principal (Pokok Hutang)</small><br>
-                    <strong style="font-size:18px; color:#1A3A5C;" id="livePrincipal">Rp 0</strong>
-                </div>
-                <div class="col-6">
-                    <small style="color:#666;">Total Interest</small><br>
-                    <strong style="font-size:18px; color:#1A3A5C;" id="liveInterest">Rp 0</strong>
-                </div>
-                <div class="col-6">
-                    <small style="color:#666;">Monthly Installment</small><br>
-                    <strong style="font-size:20px; color:#DC3545;" id="liveInstallment">Rp 0</strong>
-                </div>
-                <div class="col-6">
-                    <small style="color:#666;">Total Outstanding</small><br>
-                    <strong style="font-size:18px; color:#1A3A5C;" id="liveOutstanding">Rp 0</strong>
-                </div>
-                <div class="col-6">
-                    <small style="color:#666;">LTV Ratio</small><br>
-                    <strong style="font-size:16px;" id="liveLTV">0%</strong>
-                </div>
-                <div class="col-6">
-                    <small style="color:#666;">DP Percentage</small><br>
-                    <strong style="font-size:16px;" id="liveDPPct">0%</strong>
-                </div>
-            </div>
-            
-            <!-- Warnings -->
-            <div id="warnings" style="margin-top:12px;"></div>
+        <div id="liveCalc" style="display:none; margin-top:12px; padding:12px; background:#d4edda; border-radius:8px;">
+            <strong>🧮 Live Calculation:</strong> 
+            Monthly: <strong style="color:#DC3545;" id="liveMonthly">Rp 0</strong>
         </div>
         
-        <button type="submit" class="btn-block btn-red mt-3">
-            <i class="fas fa-paper-plane"></i> Submit to HR
-        </button>
+        <button type="submit" class="btn-block btn-red mt-3">Submit</button>
     </form>
 </div>
 
 <script>
-function calculateLive() {
-    const loan = parseFloat(document.getElementById('loan_amount').value) || 0;
-    const dp = parseFloat(document.getElementById('down_payment').value) || 0;
-    const tenor = parseInt(document.getElementById('tenure_months').value) || 12;
-    const rate = (parseFloat(document.getElementById('interest_rate').value) || 5) / 100;
+function calcLive() {
+    const loan = parseFloat(document.getElementById('loan').value) || 0;
+    const dp = parseFloat(document.getElementById('dp').value) || 0;
+    const tenor = parseInt(document.getElementById('tenor').value) || 12;
+    const rate = (parseFloat(document.getElementById('rate').value) || 5) / 100;
     
-    // Show/hide calculator
-    const calcDiv = document.getElementById('liveCalc');
-    if (loan > 0 && dp > 0) {
-        calcDiv.style.display = 'block';
-    } else {
-        calcDiv.style.display = 'none';
-        return;
+    if (loan > 0) {
+        document.getElementById('liveCalc').style.display = 'block';
+        const principal = loan - dp;
+        const totalInt = principal * rate * (tenor / 12);
+        const monthly = (principal + totalInt) / tenor;
+        document.getElementById('liveMonthly').textContent = 'Rp ' + Math.round(monthly).toLocaleString('id-ID');
     }
-    
-    // Calculations
-    const principal = loan - dp;
-    const totalInterest = principal * rate * (tenor / 12);
-    const totalOutstanding = principal + totalInterest;
-    const monthlyInstallment = totalOutstanding / tenor;
-    const ltv = (loan / (loan * 1.25)) * 100; // Approximate LTV
-    const dpPct = (dp / loan) * 100;
-    
-    // Update display
-    document.getElementById('livePrincipal').textContent = 'Rp ' + principal.toLocaleString('id-ID');
-    document.getElementById('liveInterest').textContent = 'Rp ' + Math.round(totalInterest).toLocaleString('id-ID');
-    document.getElementById('liveInstallment').textContent = 'Rp ' + Math.round(monthlyInstallment).toLocaleString('id-ID');
-    document.getElementById('liveOutstanding').textContent = 'Rp ' + Math.round(totalOutstanding).toLocaleString('id-ID');
-    document.getElementById('liveLTV').textContent = ltv.toFixed(1) + '%';
-    document.getElementById('liveDPPct').textContent = dpPct.toFixed(1) + '%';
-    
-    // Warnings
-    let warnings = '';
-    
-    if (dpPct < 20) {
-        warnings += '<div class="alert alert-warning py-1 px-2 mb-1" style="font-size:12px;">⚠️ DP rendah (<20%) - risiko lebih tinggi</div>';
-    }
-    if (ltv > 90) {
-        warnings += '<div class="alert alert-danger py-1 px-2 mb-1" style="font-size:12px;">🚨 LTV tinggi (>90%) - perlu approval khusus</div>';
-    }
-    if (tenor > 48) {
-        warnings += '<div class="alert alert-warning py-1 px-2 mb-1" style="font-size:12px;">⚠️ Tenor panjang (>4 tahun) - risiko lebih tinggi</div>';
-    }
-    if (monthlyInstallment > loan * 0.05) {
-        warnings += '<div class="alert alert-info py-1 px-2 mb-1" style="font-size:12px;">💡 Installment >5% dari loan - pastikan capacity cukup</div>';
-    }
-    if (principal <= 0) {
-        warnings += '<div class="alert alert-danger py-1 px-2" style="font-size:12px;">🚨 DP melebihi Loan Amount!</div>';
-    }
-    
-    if (warnings === '') {
-        warnings = '<div class="alert alert-success py-1 px-2" style="font-size:12px;">✅ Semua metrik terlihat normal</div>';
-    }
-    
-    document.getElementById('warnings').innerHTML = warnings;
 }
 
-function submitForm(e){
+function submitForm(e) {
     e.preventDefault();
-    const d=Object.fromEntries(new FormData(e.target));
-    d.loan_amount=parseFloat(d.loan_amount);d.down_payment=parseFloat(d.down_payment);
-    d.total_ar=parseFloat(d.total_ar);d.tenure_months=parseInt(d.tenure_months);
-    d.interest_rate=parseFloat(d.interest_rate)/100;d.document_source='Online Form';
+    const d = Object.fromEntries(new FormData(e.target));
+    d.loan_amount = parseFloat(d.loan_amount);
+    d.down_payment = parseFloat(d.down_payment);
+    d.tenure_months = parseInt(d.tenure_months);
+    d.interest_rate = parseFloat(d.interest_rate) / 100;
+    d.document_source = 'Online Form';
     
-    fetch('/api/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})
-    .then(r=>r.json())
-    .then(res=>{
-        if(res.status=='success'){
-            alert('✅ Submitted!\n\nMonthly Installment: Rp ' + res.calculations.monthly_installment.toLocaleString());
-            window.location.href='/cabang';
+    fetch('/api/submit', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(d)
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === 'success') {
+            alert('✅ Submitted! ID: ' + res.application_id);
+            window.location.href = '/dashboard';
         } else {
             alert('Error: ' + res.message);
         }
     });
 }
-
-// Auto-calculate on page load if values exist
-calculateLive();
 </script>
 {% endblock %}

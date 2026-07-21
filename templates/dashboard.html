@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - TAF AutoScanner{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <div>
+        <h4 style="color:var(--blue);">
+            {% if session.role == 'hr' %}🔴 HR Dashboard
+            {% elif session.role == 'manager' %}🟡 Manager Dashboard
+            {% else %}🔵 Staff Dashboard{% endif %}
+        </h4>
+        <small style="color:#666;">
+            {{ session.name }} | 🏢 {{ session.branch }} | <span class="badge bg-secondary">{{ session.role }}</span>
+        </small>
+    </div>
+    <a href="/logout" class="btn btn-sm btn-outline-danger">Logout</a>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-3">
+    <div class="col-4"><div class="card-stat yellow"><small>⏳ Pending</small><p style="font-size:28px;font-weight:700;">{{ stats.pending }}</p></div></div>
+    <div class="col-4"><div class="card-stat green"><small>✅ Approved</small><p style="font-size:28px;font-weight:700;">{{ stats.approved }}</p></div></div>
+    <div class="col-4"><div class="card-stat blue"><small>📊 Total</small><p style="font-size:28px;font-weight:700;">{{ stats.total }}</p></div></div>
+</div>
+
+<!-- Actions -->
+<div class="row g-2 mb-3">
+    <div class="col-6"><a href="/scan" class="btn-block btn-red"><i class="fas fa-camera"></i> Scan Document</a></div>
+    <div class="col-6"><a href="/form" class="btn-block btn-blue"><i class="fas fa-edit"></i> Online Form</a></div>
+    {% if session.role in ['hr','manager'] %}
+    <div class="col-12 mt-2"><a href="/export-excel" class="btn-block btn-outline"><i class="fas fa-download"></i> 📥 Download Excel Report</a></div>
+    {% endif %}
+</div>
+
+<!-- Recent Submissions -->
+<div class="card-stat blue" style="text-align:left;">
+    <h5>📋 Recent Submissions</h5>
+    {% if recent %}
+    <div class="table-responsive mt-2">
+        <table class="table table-sm table-hover">
+            <thead style="background:var(--blue); color:white;">
+                <tr><th>Name</th><th>Branch</th><th>Type</th><th>Status</th>
+                    {% if session.role in ['hr','manager'] %}<th class="text-center">Action</th>{% endif %}</tr>
+            </thead>
+            <tbody>
+                {% for s in recent %}
+                <tr>
+                    <td>{{ s.nama_lengkap or s.npk or '-' }}</td>
+                    <td>{{ s.cabang or '-' }}</td>
+                    <td>{{ s.loan_type or '-' }}</td>
+                    <td>{% if s.status_approval == 'Approved' %}<span class="badge bg-success">Approved</span>
+                        {% elif s.status_approval == 'Rejected' %}<span class="badge bg-danger">Rejected</span>
+                        {% else %}<span class="badge bg-warning text-dark">Pending</span>{% endif %}</td>
+                    {% if session.role in ['hr','manager'] %}
+                    <td class="text-center">
+                        {% if s.status_approval == 'Pending' %}
+                        <button onclick="approve({{ s.id }})" class="btn btn-sm btn-success">✓</button>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color:#999; padding:20px; text-align:center;">No submissions yet. Start by scanning a document!</p>
+    {% endif %}
+</div>
+
+<script>
+function approve(id){ if(confirm('Approve?')){fetch('/api/approve/'+id,{method:'POST'}).then(()=>location.reload());} }
+</script>
+{% endblock %}

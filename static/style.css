@@ -1,0 +1,50 @@
+/* Logo styling */
+.navbar-logo {
+    height: 36px;
+    width: auto;
+}
+
+.logo-container {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Mobile optimizations */
+@media (max-width: 767px) {
+    .main-content {
+        padding: 12px;
+        padding-bottom: 70px;
+    }
+    
+    .btn-block {
+        padding: 12px;
+        font-size: 14px;
+    }
+    
+    .card-stat {
+        padding: 14px;
+    }
+    
+    .upload-box {
+        padding: 30px 15px;
+    }
+    
+    .table-responsive {
+        font-size: 12px;
+    }
+    
+    button, .btn, a.btn-block {
+        min-height: 44px;
+    }
+    
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .upload-box:active {
+        border-color: #DC3545;
+        background: #fff5f5;
+    }
+}

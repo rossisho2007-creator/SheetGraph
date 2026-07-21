@@ -1,0 +1,102 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "SheetGraph API",
+    "description": "Document scanning, OCR, and HR approval system for TAF",
+    "version": "1.0"
+  },
+  "host": "sheetgraph.onrender.com",
+  "basePath": "/",
+  "schemes": ["https"],
+  "paths": {
+    "/api/submit": {
+      "post": {
+        "summary": "Submit new application",
+        "description": "Submit a new loan/credit application from Cabang",
+        "operationId": "SubmitApplication",
+        "consumes": ["application/json"],
+        "parameters": [{
+          "name": "body",
+          "in": "body",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "properties": {
+              "npk": {"type": "string"},
+              "kpm_id": {"type": "string"},
+              "nama_lengkap": {"type": "string"},
+              "loan_amount": {"type": "number"},
+              "down_payment": {"type": "number"},
+              "total_ar": {"type": "number"},
+              "tanggal_mulai": {"type": "string"},
+              "tenure_months": {"type": "integer"},
+              "loan_type": {"type": "string"},
+              "interest_rate": {"type": "number"},
+              "cabang": {"type": "string"}
+            }
+          }
+        }],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {"type": "string"},
+                "calculations": {
+                  "type": "object",
+                  "properties": {
+                    "principal": {"type": "number"},
+                    "total_interest": {"type": "number"},
+                    "monthly_installment": {"type": "number"},
+                    "outstanding_balance": {"type": "number"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/approve/{id}": {
+      "post": {
+        "summary": "Approve submission",
+        "operationId": "ApproveSubmission",
+        "parameters": [{
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "type": "integer"
+        }],
+        "responses": {"200": {"description": "Approved"}}
+      }
+    },
+    "/api/reject/{id}": {
+      "post": {
+        "summary": "Reject submission",
+        "operationId": "RejectSubmission",
+        "parameters": [{
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "type": "integer"
+        }],
+        "responses": {"200": {"description": "Rejected"}}
+      }
+    },
+    "/hr/export-excel": {
+      "get": {
+        "summary": "Export Excel report",
+        "description": "Download all submissions as Excel file",
+        "operationId": "ExportExcel",
+        "produces": ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+        "responses": {
+          "200": {
+            "description": "Excel file",
+            "schema": {"type": "file"}
+          }
+        }
+      }
+    }
+  }
+}

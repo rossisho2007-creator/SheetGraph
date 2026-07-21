@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Edit Submission #{{ submission.id }}{% endblock %}
+{% block content %}
+
+<div style="max-width:900px; margin:0 auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div>
+            <h4 style="color:var(--blue);">✏️ Edit & Verify Submission</h4>
+            <small style="color:#666;">
+                Application: <strong>{{ submission.application_id }}</strong> | 
+                OCR Confidence: <strong>{{ submission.scan_confidence|default('N/A') }}%</strong>
+                {% if submission.edited_after_scan %}
+                <span class="badge bg-warning">Previously Edited</span>
+                {% endif %}
+            </small>
+        </div>
+        <a href="/dashboard" class="btn btn-sm btn-outline-secondary">← Back</a>
+    </div>
+
+    <!-- OCR vs Edited Comparison -->
+    {% if submission.original_ocr_data %}
+    <div class="alert alert-info" style="font-size:12px;">
+        <strong>📋 Original OCR Data:</strong> 
+        <span style="font-family:monospace;">{{ submission.original_ocr_data[:200] }}</span>
+        <br><small style="color:#999;">Edit history below shows what was changed from the original scan.</small>
+    </div>
+    {% endif %}
+
+    <!-- EDITABLE FORM -->
+    <div class="card-stat blue" style="text-align:left;">
+        <h5>📝 Edit Submission Data</h5>
+        <p style="color:#666; font-size:13px;">Correct any OCR mistakes before final submission</p>
+        
+        <form id="editForm" onsubmit="saveEdits(event)">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold" style="font-size:12px;">NPK</label>
+                    <input type="text" name="npk" class="form-control" value="{{ submission.npk }}" 
+                           onchange="highlightField(this)">
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label fw-bold" style="font-size:12px;">Nama Lengkap</label>
+                    <input type="text" name="nama_lengkap" class="form-control" value="{{ submission.nama_lengkap }}"
+                           onchange="highlightField(this)">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold" style="font-size:12px;">Jabatan / Gol</label>
+                    <input type="text" name="jabatan_gol" class="form-control" value="{{ submission.jabatan_gol }}"
+                           onchange="highlightField(this)">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold" style="font-size:12px;">Departemen / Cabang</label>
+                    <input type="text" name="departemen_cabang" class="form-control" value="{{ submission.departemen_cabang }}"
+                           onchange="highlightField(this)">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold" style="font-size:12px;">Tgl Masuk</label>
+                    <input type="text" name="tgl_masuk" class="form-control" value="{{ submission.tgl_masuk }}"
+                           onchange="highlightField(this)">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold" style="font-size:12px;">Tgl Pengangkatan</label>
+                    <input type="text" name="tgl_pengangkatan" class="form-control" value="{{ submission.tgl_pengangkatan }}"
+                           onchange="highlightField(this)">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold" style="font-size:12px;">Loan Type</label>
+                    <input type="text" name="loan_type" class="form-control" value="{{ submission.loan_type }}"
+                           onchange="highlightField(this)">
+                </div>
+            </div>
+            
+            <!-- LIVE CALCULATION (if financial data) -->
+            {% if submission.loan_amount %}
+            <div id="liveCalc" class="mt-3 p-3" style="background:#d4edda; border-radius:8px;">
+                <strong>🧮 Auto-Calculated:</strong> 
+                Monthly Installment: <strong style="color:#DC3545;">Rp {{ "{:,.0f}".format(submission.monthly_installment|default(0)) }}</strong>
+            </div>
+            {% endif %}
+            
+            <div class="row g-2 mt-3">
+                <div class="col-6">
+                    <button type="submit" class="btn-block btn-red">
+                        <i class="fas fa-save"></i> Save & Verify
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button type="button" onclick="submitFinal()" class="btn-block btn-blue">
+                        <i class="fas fa-paper-plane"></i> Submit Final
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- EDIT HISTORY -->
+    {% if edit_history %}
+    <div class="card-stat mt-3" style="text-align:left; border-top-color:#FFC107;">
+        <h5>📜 Edit History</h5>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead><tr><th>Field</th><th>Old Value</th><th>New Value</th><th>Edited By</th><th>Time</th></tr></thead>
+                <tbody>
+                    {% for edit in edit_history %}
+                    <tr>
+                        <td><strong>{{ edit.field_name }}</strong></td>
+                        <td style="color:#DC3545;">{{ edit.old_value }}</td>
+                        <td style="color:#28A745;">{{ edit.new_value }}</td>
+                        <td>{{ edit.edited_by_name }}</td>
+                        <td style="font-size:11px;">{{ edit.edit_timestamp }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+let changedFields = [];
+
+function highlightField(input) {
+    if (input.value !== input.defaultValue) {
+        input.style.borderColor = '#FFC107';
+        input.style.background = '#FFF8E1';
+        if (!changedFields.includes(input.name)) {
+            changedFields.push(input.name);
+        }
+    } else {
+        input.style.borderColor = '';
+        input.style.background = '';
+        changedFields = changedFields.filter(f => f !== input.name);
+    }
+}
+
+function saveEdits(e) {
+    e.preventDefault();
+    const form = document.getElementById('editForm');
+    const data = Object.fromEntries(new FormData(form));
+    
+    fetch('/edit/{{ submission.id }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === 'success') {
+            alert('✅ Saved! ' + res.edited_fields.length + ' fields updated:\n' + res.edited_fields.join(', '));
+            location.reload();
+        }
+    });
+}
+
+function submitFinal() {
+    if (confirm('Submit this as final? HR will review afterwards.')) {
+        fetch('/api/approve/{{ submission.id }}', {method:'POST'})
+        .then(() => { alert('✅ Submitted!'); window.location.href='/dashboard'; });
+    }
+}
+</script>
+{% endblock %}

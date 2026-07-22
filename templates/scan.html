@@ -113,6 +113,17 @@ function uploadFile(file) {
         </div>
         {% endfor %}
     </div>
+
+    <div class="row g-2 mt-3">
+        <div class="col-6">
+            <label style="font-size:11px; color:#999; font-weight:600;">Email (opsional)</label>
+            <input type="email" id="scanEmail" placeholder="nama@email.com" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px;">
+        </div>
+        <div class="col-6">
+            <label style="font-size:11px; color:#999; font-weight:600;">No. HP / WhatsApp (opsional)</label>
+            <input type="tel" id="scanPhone" placeholder="08xxxxxxxxxx" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px;">
+        </div>
+    </div>
     {% endif %}
     
     {% if calculations %}
@@ -136,6 +147,8 @@ function confirmSubmit() {
     data.tenure_months = data.tenure_months || 12;
     data.interest_rate = data.interest_rate || 0.05;
     data.document_source = 'Kamera Scan';
+    data.email = document.getElementById('scanEmail').value || '';
+    data.phone = document.getElementById('scanPhone').value || '';
     
     fetch('/api/submit', {
         method: 'POST',

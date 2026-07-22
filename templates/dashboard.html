@@ -68,6 +68,13 @@
                             <div class="col-3"><small style="color:#999;">Angsuran</small><br><strong style="color:#DC3545;">Rp {{ "{:,.0f}".format(s.monthly_installment|default(0)) }}</strong></div>
                             <div class="col-3"><small style="color:#999;">Tenor</small><br>{{ s.tenure_months }} bln</div>
                         </div>
+                        <div class="row g-2 mt-2" style="font-size:12px;">
+                            <div class="col-4"><small style="color:#999;">Email</small><br>{{ s.email or '-' }}</div>
+                            <div class="col-4"><small style="color:#999;">No. HP</small><br>{{ s.phone or '-' }}</div>
+                            {% if s.status_approval == 'Rejected' and s.rejection_reason %}
+                            <div class="col-4"><small style="color:#999;">Alasan Ditolak</small><br>{{ s.rejection_reason }}</div>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -115,6 +122,14 @@
 <script>
 function toggleDetail(id){var r=document.getElementById('detail-'+id);r.style.display=r.style.display==='none'?'table-row':'none';}
 function approve(id){if(confirm('Setujui?')){fetch('/api/approve/'+id,{method:'POST'}).then(()=>location.reload());}}
-function reject(id){if(confirm('Tolak?')){fetch('/api/reject/'+id,{method:'POST'}).then(()=>location.reload());}}
+function reject(id){
+    const reason = prompt('Alasan penolakan (opsional, akan dilihat HR):');
+    if(reason === null) return;
+    fetch('/api/reject/'+id, {
+        method:'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({reason: reason})
+    }).then(()=>location.reload());
+}
 </script>
 {% endblock %}

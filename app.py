@@ -168,13 +168,27 @@ def login():
     if request.method == 'POST':
         u = request.form.get('username','').strip().lower()
         p = request.form.get('password','')
-        if u in USERS and USERS[u]['password'] == p:
+
+        # Path 1: privileged accounts (hr / manager / staff-demo) - real password required
+        if u in USERS and p and USERS[u]['password'] == p:
             session['user'] = u
             session['role'] = USERS[u]['role']
             session['name'] = USERS[u]['name']
             session['branch'] = USERS[u]['branch']
             return redirect(url_for('dashboard'))
-        flash('Username atau password salah', 'danger')
+
+        # Path 2: regular employee NPK login - no password, role ALWAYS forced
+        # to 'staff' server-side. Client-submitted role is never trusted.
+        name = request.form.get('name','').strip()
+        branch = request.form.get('branch','').strip()
+        if u and len(u) >= 2 and not p and name and branch:
+            session['user'] = u
+            session['role'] = 'staff'
+            session['name'] = name
+            session['branch'] = branch
+            return redirect(url_for('dashboard'))
+
+        flash('Nama pengguna atau kata sandi salah', 'danger')
     return render_template('login.html')
 
 @app.route('/logout')

@@ -9,6 +9,9 @@
         <h4 style="color:var(--blue); font-weight:700;">Dashboard HR</h4>
         <small style="color:#666;">{{ session.name }} · {{ session.branch }}</small>
     </div>
+    {% if session.role == 'hr' %}
+    <a href="/settings" style="font-size:12px; color:var(--blue); text-decoration:none; border:1px solid #E5E7EB; border-radius:8px; padding:6px 12px;">⚙️ Pengaturan</a>
+    {% endif %}
 </div>
 
 <div class="row g-2 mb-3">

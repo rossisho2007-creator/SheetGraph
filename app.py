@@ -45,6 +45,27 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_setting(key, default=None):
+    conn = get_db()
+    row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+    conn.close()
+    return row['value'] if row else default
+
+def get_setting_full(key):
+    conn = get_db()
+    row = conn.execute("SELECT value, updated_by, updated_at FROM settings WHERE key=?", (key,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def set_setting(key, value, updated_by):
+    conn = get_db()
+    conn.execute("""INSERT INTO settings (key, value, updated_by, updated_at) VALUES (?,?,?,?)
+                     ON CONFLICT(key) DO UPDATE SET value=excluded.value,
+                     updated_by=excluded.updated_by, updated_at=excluded.updated_at""",
+                 (key, value, updated_by, datetime.now()))
+    conn.commit()
+    conn.close()
+
 def init_db():
     conn = get_db()
     conn.execute('''CREATE TABLE IF NOT EXISTS submissions (
@@ -82,6 +103,12 @@ def init_db():
             conn.execute(f'ALTER TABLE employee_loans ADD COLUMN {col} {coltype}')
         except sqlite3.OperationalError:
             pass
+    conn.execute('''CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_by TEXT,
+        updated_at DATETIME
+    )''')
     conn.commit(); conn.close()
 
 init_db()
@@ -107,18 +134,19 @@ def do_ocr(path):
         print(f"OCR failed: {e}")
         return ''
 
+NEXT_LABEL = r'(?:No\.?\s*Pokok|NPK|NOPEK|NIK|Jabatan\s*/?\s*Gol|Departemen|Divisi|Cabang|Bagian|Tgl\s*Masuk|Tgl\s*Pengangkatan|Kantor|Lokasi|No\.?\s*Rangka|Rangka|No\.?\s*Mesin|Mesin|BPKB|$)'
+
 def smart_parse(text):
     if not text: return {}, {}, text
     result, conf = {}, {}
     tests = [
-        ('npk', r'(?:NPK|NOPEK|No\.?\s*Pokok|NIK)\s*:?\s*(\d{3,})'),
-        ('nama_lengkap', r'(?:Nama|Name)\s*:\s*([A-Za-z\s\.]{3,60})'),
-        ('jabatan_gol', r'(?:Jabatan|Gol)\s*(?:/|\s)*:\s*([A-Za-z0-9\s\/\-\.]{2,30})'),
-        ('departemen_cabang', r'(?:Departemen|Divisi|Bagian)\s*:\s*([A-Za-z0-9\s\/\-\.]{3,60})'),
-        ('cabang', r'(?:Cabang|Kantor|Lokasi)\s*:\s*([A-Za-z\s\-]{3,40})'),
-        ('no_rangka', r'(?:No\.?\s*Rangka|Rangka)\s*:\s*([A-Za-z0-9\-]{8,30})'),
-        ('no_mesin', r'(?:No\.?\s*Mesin|Mesin)\s*:\s*([A-Za-z0-9\-]{8,30})'),
-        ('bpkb', r'(?:BPKB)\s*:\s*([A-Za-z0-9\-]{5,30})'),
+        ('npk', r'(?:NPK|NOPEK|No\.?\s*Pokok(?:\s*Karyawan)?|NIK)\s*:?\s*(\d{3,})'),
+        ('nama_lengkap', r'(?:Nama|Name)\s*:\s*([A-Za-z\s\.]{3,60}?)(?=\s*' + NEXT_LABEL + r')'),
+        ('jabatan_gol', r'Jabatan\s*/?\s*Gol\s*:\s*([A-Za-z0-9\s\/\-\.]{2,30}?)(?=\s*' + NEXT_LABEL + r')'),
+        ('departemen_cabang', r'Departemen\s*/?\s*Divisi\s*/?\s*Cabang\s*:\s*([A-Za-z0-9\s\/\-\.]{3,60}?)(?=\s*' + NEXT_LABEL + r')'),
+        ('no_rangka', r'(?:No\.?\s*Rangka|Rangka)\s*:\s*([A-Za-z0-9\-]{5,30}?)(?=\s*' + NEXT_LABEL + r')'),
+        ('no_mesin', r'(?:No\.?\s*Mesin|Mesin)\s*:\s*([A-Za-z0-9\-]{5,30}?)(?=\s*' + NEXT_LABEL + r')'),
+        ('bpkb', r'(?:BPKB)\s*:\s*([A-Za-z0-9\-]{3,30}?)(?=\s*' + NEXT_LABEL + r')'),
     ]
     for field, pat in tests:
         try:
@@ -146,10 +174,13 @@ def calculate(data):
         loan = float(data.get('loan_amount', 16000000))
         dp = float(data.get('down_payment', 0))
         tenor = int(data.get('tenure_months', 36))
-        rate = 0.05
+        if data.get('employee_type') == 'office':
+            rate = float(get_setting('office_interest_rate', '0.05'))
+        else:
+            rate = 0.05
         if loan <= 0 or tenor <= 0: return {}
         p = loan - dp; ti = p * rate * (tenor/12); m = (p + ti) / tenor
-        return {'principal': round(p), 'total_interest': round(ti), 'monthly_installment': round(m), 'outstanding_balance': round(p+ti)}
+        return {'principal': round(p), 'total_interest': round(ti), 'monthly_installment': round(m), 'outstanding_balance': round(p+ti), 'interest_rate': rate}
     except: return {}
 
 def generate_excel(export_type='full'):
@@ -220,12 +251,13 @@ def dashboard():
 @login_required
 def scan():
     parsed, conf, raw, calc = None, None, None, None
+    office_rate_percent = float(get_setting('office_interest_rate', '0.05')) * 100
     if request.method == 'POST':
         file = request.files.get('document')
         if file and file.filename:
             if not allowed_file(file.filename):
                 flash('File harus berupa gambar (PNG, JPG, JPEG)', 'danger')
-                return render_template('scan.html', parsed=parsed, confidence=conf, raw_text=raw, calculations=calc)
+                return render_template('scan.html', parsed=parsed, confidence=conf, raw_text=raw, calculations=calc, office_rate_percent=office_rate_percent)
             path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
             file.save(path)
             raw = do_ocr(path)
@@ -234,11 +266,36 @@ def scan():
             if raw:
                 parsed, conf, raw = smart_parse(raw)
                 if parsed: calc = calculate(parsed)
-    return render_template('scan.html', parsed=parsed, confidence=conf, raw_text=raw, calculations=calc)
+    return render_template('scan.html', parsed=parsed, confidence=conf, raw_text=raw, calculations=calc, office_rate_percent=office_rate_percent)
 
 @app.route('/form')
 @login_required
-def online_form(): return render_template('cabang_form.html')
+def online_form():
+    office_rate_percent = float(get_setting('office_interest_rate', '0.05')) * 100
+    return render_template('cabang_form.html', office_rate_percent=office_rate_percent)
+
+@app.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    if session.get('role') != 'hr':
+        flash('Hanya HR yang bisa mengakses halaman ini', 'danger')
+        return redirect(url_for('dashboard'))
+    if request.method == 'POST':
+        raw_pct = request.form.get('office_rate_percent', '').strip().replace(',', '.')
+        try:
+            pct = float(raw_pct)
+            if pct <= 0 or pct > 100:
+                flash('Persentase harus antara 0 dan 100', 'danger')
+            else:
+                set_setting('office_interest_rate', str(pct / 100), session.get('name'))
+                flash(f'Suku bunga Non-Operasional diperbarui menjadi {pct}%', 'success')
+        except ValueError:
+            flash('Masukkan angka yang valid, cth. 8.5', 'danger')
+        return redirect(url_for('settings'))
+
+    current_percent = float(get_setting('office_interest_rate', '0.05')) * 100
+    audit = get_setting_full('office_interest_rate')
+    return render_template('settings.html', current_percent=current_percent, audit=audit)
 
 @app.route('/calculator')
 @login_required

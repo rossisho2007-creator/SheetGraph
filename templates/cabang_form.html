@@ -100,7 +100,7 @@
             </div>
             <div>
                 <label style="font-weight:600; font-size:12px; color:#555; display:block; margin-bottom:3px;">Suku Bunga (%)</label>
-                <input type="text" value="5%" readonly style="width:100%; padding:11px; border:1px solid #E5E7EB; border-radius:10px; font-size:14px; background:#F5F5F5; color:#999;">
+                <input type="text" id="rateDisplay" value="5%" readonly style="width:100%; padding:11px; border:1px solid #E5E7EB; border-radius:10px; font-size:14px; background:#F5F5F5; color:#999;">
             </div>
             <div>
                 <label style="font-weight:600; font-size:12px; color:#555; display:block; margin-bottom:3px;">Tanggal Mulai</label>
@@ -127,8 +127,26 @@
 </div>
 
 <script>
-function updateRate(type){const i=document.getElementById("programInfo");if(type==="field"){i.style.display="block";i.style.background="#F0FDF4";i.innerHTML='<strong style="color:#166534;">🏍️ Operasional</strong><br><small style="color:#166534;">16Jt · Bunga 5% · 36 bulan · Tanpa DP</small>';}else if(type==="office"){i.style.display="block";i.style.background="#FFF7ED";i.innerHTML='<strong style="color:#9A3412;">💼 Non-Operasional</strong><br><small style="color:#9A3412;">Nominal variabel · Bunga 5% · Maks 48 bulan</small>';}}
-function calcLive(){const l=parseFloat((document.getElementById("loan").value||"").replace(/[^0-9]/g,""))||0;const d=parseFloat((document.getElementById("dp").value||"").replace(/[^0-9]/g,""))||0;const t=parseInt((document.getElementById("tenor").value||"").replace(/[^0-9]/g,""))||36;if(l>0){document.getElementById("liveCalc").style.display="block";const p=l-d,i=p*0.05*(t/12),m=(p+i)/t;document.getElementById("liveMonthly").textContent="Rp "+Math.round(m).toLocaleString("id-ID");}}
+const OFFICE_RATE_PERCENT = {{ office_rate_percent }};
+function currentRatePercent(){
+    const type = document.querySelector('select[name="employee_type"]').value;
+    return type === 'office' ? OFFICE_RATE_PERCENT : 5;
+}
+function updateRate(type){
+    const i=document.getElementById("programInfo");
+    const rateP = currentRatePercent();
+    document.getElementById("rateDisplay").value = rateP.toFixed(2).replace(/\.00$/, '') + '%';
+    if(type==="field"){i.style.display="block";i.style.background="#F0FDF4";i.innerHTML='<strong style="color:#166534;">🏍️ Operasional</strong><br><small style="color:#166534;">16Jt · Bunga 5% · 36 bulan · Tanpa DP</small>';}
+    else if(type==="office"){i.style.display="block";i.style.background="#FFF7ED";i.innerHTML='<strong style="color:#9A3412;">💼 Non-Operasional</strong><br><small style="color:#9A3412;">Nominal variabel · Bunga '+rateP+'% · Maks 48 bulan</small>';}
+    calcLive();
+}
+function calcLive(){
+    const l=parseFloat((document.getElementById("loan").value||"").replace(/[^0-9]/g,""))||0;
+    const d=parseFloat((document.getElementById("dp").value||"").replace(/[^0-9]/g,""))||0;
+    const t=parseInt((document.getElementById("tenor").value||"").replace(/[^0-9]/g,""))||36;
+    const rate=currentRatePercent()/100;
+    if(l>0){document.getElementById("liveCalc").style.display="block";const p=l-d,i=p*rate*(t/12),m=(p+i)/t;document.getElementById("liveMonthly").textContent="Rp "+Math.round(m).toLocaleString("id-ID");}
+}
 
 // --- Signature pad ---
 const canvas = document.getElementById('sigCanvas');

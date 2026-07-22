@@ -76,13 +76,24 @@ function uploadFile(file) {
     document.getElementById('uploadOptions').style.display = 'none';
     document.getElementById('loadingOverlay').style.display = 'block';
     const fd = new FormData(); fd.append('document', file);
-    fetch('/scan', { method: 'POST', body: fd })
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+    fetch('/scan', { method: 'POST', body: fd, signal: controller.signal })
     .then(r => r.text())
     .then(html => {
+        clearTimeout(timeoutId);
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const newContent = doc.querySelector('.main-content');
         if (newContent) document.querySelector('.main-content').innerHTML = newContent.innerHTML;
+    })
+    .catch(err => {
+        clearTimeout(timeoutId);
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('uploadOptions').style.display = 'flex';
+        alert('⚠️ Pemindaian gagal atau terlalu lama (mungkin server baru bangun dari sleep). Coba lagi dalam beberapa detik.');
     });
 }
 </script>
@@ -207,10 +218,17 @@ function uploadFile(file) {
 
 {% if parsed %}
 <script>
+const OFFICE_RATE_PERCENT = {{ office_rate_percent }};
+function currentRatePercent(){
+    const type = document.getElementById('f_employee_type').value;
+    return type === 'office' ? OFFICE_RATE_PERCENT : 5;
+}
 function updateRate(type){
     const i=document.getElementById("programInfo");
+    const rateP = currentRatePercent();
     if(type==="field"){i.style.display="block";i.style.background="#F0FDF4";i.innerHTML='<strong style="color:#166534;">🏍️ Operasional</strong><br><small style="color:#166534;">16Jt · Bunga 5% · 36 bulan · Tanpa DP</small>';}
-    else{i.style.display="block";i.style.background="#FFF7ED";i.innerHTML='<strong style="color:#9A3412;">💼 Non-Operasional</strong><br><small style="color:#9A3412;">Nominal variabel · Bunga 5% · Maks 48 bulan</small>';}
+    else{i.style.display="block";i.style.background="#FFF7ED";i.innerHTML='<strong style="color:#9A3412;">💼 Non-Operasional</strong><br><small style="color:#9A3412;">Nominal variabel · Bunga '+rateP+'% · Maks 48 bulan</small>';}
+    calcLive();
 }
 updateRate(document.getElementById('f_employee_type').value);
 
@@ -218,7 +236,8 @@ function calcLive(){
     const l=parseFloat((document.getElementById("f_loan_amount").value||"").replace(/[^0-9]/g,""))||0;
     const d=parseFloat((document.getElementById("f_down_payment").value||"").replace(/[^0-9]/g,""))||0;
     const t=parseInt((document.getElementById("f_tenure_months").value||"").replace(/[^0-9]/g,""))||36;
-    const p=l-d, i=p*0.05*(t/12), m=t>0?(p+i)/t:0;
+    const rate=currentRatePercent()/100;
+    const p=l-d, i=p*rate*(t/12), m=t>0?(p+i)/t:0;
     document.getElementById("liveMonthly").textContent="Rp "+Math.round(m).toLocaleString("id-ID");
 }
 calcLive();

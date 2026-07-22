@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Pengaturan{% endblock %}
+{% block content %}
+
+<div style="max-width:480px; margin:20px auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h4 style="color:var(--blue); font-weight:700;">⚙️ Pengaturan Suku Bunga</h4>
+        <a href="/dashboard" class="btn btn-sm btn-outline-secondary">← Kembali</a>
+    </div>
+
+    <div style="background:#fff; border:1px solid #E5E7EB; border-radius:16px; padding:24px;">
+        <div style="padding:12px 16px; background:#F0FDF4; border-radius:10px; margin-bottom:16px; font-size:13px; color:#166534;">
+            🏍️ <strong>Operasional:</strong> tetap 5% flat, tidak dapat diubah.
+        </div>
+
+        <form method="POST">
+            <label style="font-weight:600; font-size:13px; color:#555; display:block; margin-bottom:6px;">
+                💼 Suku Bunga Non-Operasional (%) saat ini: <strong style="color:var(--blue);">{{ "%.2f"|format(current_percent) }}%</strong>
+            </label>
+            <input type="text" name="office_rate_percent" inputmode="decimal" placeholder="cth. 8.5" value="{{ "%.2f"|format(current_percent) }}"
+                   style="width:100%; padding:12px; border:1px solid #E5E7EB; border-radius:10px; font-size:15px; margin-bottom:6px;">
+            <p style="font-size:12px; color:#999; margin-bottom:16px;">Masukkan sebagai angka persen, cth. <code>8.5</code> untuk 8.5%.</p>
+
+            {% if audit %}
+            <p style="font-size:11px; color:#bbb; margin-bottom:16px;">
+                Terakhir diubah oleh {{ audit.updated_by or '-' }}
+                {% if audit.updated_at %} pada {{ audit.updated_at }}{% endif %}.
+            </p>
+            {% endif %}
+
+            <button type="submit" style="width:100%; padding:14px; background:#1A3A5C; color:white; border:none; border-radius:50px; font-size:15px; font-weight:700; cursor:pointer;">
+                Simpan Perubahan
+            </button>
+        </form>
+    </div>
+
+    <p style="font-size:12px; color:#999; margin-top:12px; text-align:center;">
+        Perubahan berlaku untuk pengajuan baru setelah disimpan. Tidak memengaruhi pengajuan yang sudah ada.
+    </p>
+</div>
+{% endblock %}

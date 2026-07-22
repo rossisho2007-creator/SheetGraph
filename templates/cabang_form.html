@@ -113,6 +113,10 @@
             <small style="color:#166534;">🧮 Angsuran Bulanan</small><br>
             <strong style="color:#DC3545; font-size:22px;" id="liveMonthly">Rp 0</strong>
         </div>
+
+        <div style="font-weight:700; color:var(--blue); font-size:14px; margin:16px 0 6px;">✍️ Tanda Tangan Digital *</div>
+        <canvas id="sigCanvas" width="500" height="150" style="border:1px solid #E5E7EB; border-radius:10px; width:100%; height:150px; touch-action:none; background:#fff; display:block;"></canvas>
+        <button type="button" onclick="clearSignature()" style="margin-top:6px; margin-bottom:14px; padding:7px 16px; background:#F1F3F5; border:none; border-radius:8px; font-size:12px; cursor:pointer;">🗑️ Hapus & Ulangi</button>
         
         <button type="submit" style="width:100%; padding:16px; background:#DC3545; color:white; border:none; border-radius:50px; font-size:16px; font-weight:700; cursor:pointer;">
             Kirim Pengajuan
@@ -125,6 +129,43 @@
 <script>
 function updateRate(type){const i=document.getElementById("programInfo");if(type==="field"){i.style.display="block";i.style.background="#F0FDF4";i.innerHTML='<strong style="color:#166534;">🏍️ Operasional</strong><br><small style="color:#166534;">16Jt · Bunga 5% · 36 bulan · Tanpa DP</small>';}else if(type==="office"){i.style.display="block";i.style.background="#FFF7ED";i.innerHTML='<strong style="color:#9A3412;">💼 Non-Operasional</strong><br><small style="color:#9A3412;">Nominal variabel · Bunga 5% · Maks 48 bulan</small>';}}
 function calcLive(){const l=parseFloat((document.getElementById("loan").value||"").replace(/[^0-9]/g,""))||0;const d=parseFloat((document.getElementById("dp").value||"").replace(/[^0-9]/g,""))||0;const t=parseInt((document.getElementById("tenor").value||"").replace(/[^0-9]/g,""))||36;if(l>0){document.getElementById("liveCalc").style.display="block";const p=l-d,i=p*0.05*(t/12),m=(p+i)/t;document.getElementById("liveMonthly").textContent="Rp "+Math.round(m).toLocaleString("id-ID");}}
-function submitForm(e){e.preventDefault();const d=Object.fromEntries(new FormData(e.target));d.loan_amount=parseFloat((d.loan_amount||"").replace(/[^0-9]/g,""))||0;d.down_payment=parseFloat((d.down_payment||"").replace(/[^0-9]/g,""))||0;d.tenure_months=parseInt((d.tenure_months||"").replace(/[^0-9]/g,""))||36;d.interest_rate=0.05;d.document_source="Formulir";fetch("/api/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}).then(r=>r.json()).then(res=>{if(res.status==="success"){alert("✅ Terkirim!");window.location.href="/dashboard";}});}
+
+// --- Signature pad ---
+const canvas = document.getElementById('sigCanvas');
+const ctx = canvas.getContext('2d');
+let drawing = false;
+let hasSignature = false;
+
+function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const point = e.touches ? e.touches[0] : e;
+    return { x: (point.clientX - rect.left) * scaleX, y: (point.clientY - rect.top) * scaleY };
+}
+function startDraw(e) { drawing = true; hasSignature = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+function draw(e) { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#1A3A5C'; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.stroke(); e.preventDefault(); }
+function stopDraw() { drawing = false; }
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', stopDraw);
+canvas.addEventListener('mouseleave', stopDraw);
+canvas.addEventListener('touchstart', startDraw, {passive:false});
+canvas.addEventListener('touchmove', draw, {passive:false});
+canvas.addEventListener('touchend', stopDraw);
+function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); hasSignature = false; }
+
+function submitForm(e){
+    e.preventDefault();
+    if (!hasSignature) { alert('⚠️ Tanda tangan diperlukan sebelum mengirim.'); return; }
+    const d=Object.fromEntries(new FormData(e.target));
+    d.loan_amount=parseFloat((d.loan_amount||"").replace(/[^0-9]/g,""))||0;
+    d.down_payment=parseFloat((d.down_payment||"").replace(/[^0-9]/g,""))||0;
+    d.tenure_months=parseInt((d.tenure_months||"").replace(/[^0-9]/g,""))||36;
+    d.interest_rate=0.05;
+    d.document_source="Formulir";
+    d.signature=canvas.toDataURL('image/png');
+    fetch("/api/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}).then(r=>r.json()).then(res=>{if(res.status==="success"){alert("✅ Terkirim!");window.location.href="/dashboard";}});
+}
 </script>
 {% endblock %}

@@ -75,6 +75,8 @@
                             <div class="col-4"><small style="color:#999;">Alasan Ditolak</small><br>{{ s.rejection_reason }}</div>
                             {% endif %}
                         </div>
+                        <a href="/export-edlin/{{ s.id }}" onclick="event.stopPropagation();" style="display:inline-block; margin-top:8px; margin-right:8px; font-size:11px; color:var(--blue); text-decoration:none; border:1px solid #E5E7EB; border-radius:8px; padding:5px 10px;">📄 Edlin (pengajuan ini)</a>
+                        <a href="/export-edlin-employee/{{ s.npk }}" onclick="event.stopPropagation();" style="display:inline-block; margin-top:8px; font-size:11px; color:var(--blue); text-decoration:none; border:1px solid #E5E7EB; border-radius:8px; padding:5px 10px;">📚 Edlin (semua riwayat NPK ini)</a>
                     </td>
                 </tr>
                 {% endfor %}

@@ -3,7 +3,7 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import pandas as pd
 import os, re, json, sqlite3, uuid
-from datetime import datetime
+from datetime import datetime, date
 from io import BytesIO
 from functools import wraps
 
@@ -109,12 +109,35 @@ def init_db():
         updated_by TEXT,
         updated_at DATETIME
     )''')
+    try:
+        conn.execute('ALTER TABLE submissions ADD COLUMN insurance_amount REAL')
+    except sqlite3.OperationalError:
+        pass
+    conn.execute('''CREATE TABLE IF NOT EXISTS loan_schedule (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        submission_id INTEGER NOT NULL,
+        month_number INTEGER NOT NULL,
+        due_date TEXT NOT NULL,
+        expected_amount REAL,
+        balance_after REAL,
+        is_paid INTEGER DEFAULT 0,
+        paid_date DATETIME
+    )''')
     conn.commit(); conn.close()
 
 init_db()
 
 KNOWN_DEPARTMENTS = ['AR Management', 'Finance', 'Sales', 'Marketing', 'Operation', 'HR Service', 'Collection', 'Credit', 'Service']
 KNOWN_BRANCHES = ['Jakarta Pusat','Jakarta Selatan','Jakarta Utara','Bandung','Surabaya','Medan','Makassar','Denpasar','Palembang','Balikpapan','Batam','Yogyakarta','Semarang','Malang','Bekasi','Tangerang','Depok','Bogor','Padang','Pekanbaru','Samarinda','Banjarmasin','Manado','Lampung','Jambi','Bengkulu','Cirebon','Serang','Karawang','Kediri','Jember','Pontianak','Kendari','Palu','Banda Aceh','Duri','Kelapa Gading','BSD City','Tegal']
+
+def add_months(d, months):
+    month = d.month - 1 + months
+    year = d.year + month // 12
+    month = month % 12 + 1
+    days_in_month = [31, 29 if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)) else 28,
+                      31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    day = min(d.day, days_in_month[month - 1])
+    return date(year, month, day)
 
 _ocr_reader = None
 
@@ -189,10 +212,19 @@ def generate_excel(export_type='full'):
     elif export_type == 'pending': df = pd.read_sql_query("SELECT * FROM submissions WHERE status_approval='Pending'", conn)
     else: df = pd.read_sql_query("SELECT * FROM submissions", conn)
     conn.close()
+    if 'signature' in df.columns:
+        df = df.drop(columns=['signature'])
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as w: df.to_excel(w, index=False)
     output.seek(0)
     return output
+
+@app.route('/export-excel/pending')
+@login_required
+def export_pending():
+    if session.get('role') not in ['hr','manager']: return redirect(url_for('dashboard'))
+    return send_file(generate_excel('pending'), download_name=f'Pending_{datetime.now().strftime("%Y%m%d")}.xlsx')
+
 
 @app.route('/login', methods=['GET','POST'])
 def login():
@@ -340,10 +372,106 @@ def submit():
 @login_required
 def approve(id):
     if session.get('role') not in ['hr','manager']: return jsonify({'status':'error'}), 403
+    body = request.get_json(silent=True) or {}
     conn = get_db()
-    conn.execute("UPDATE submissions SET status_approval='Approved', approved_date=CURRENT_TIMESTAMP WHERE id=?",(id,))
+    row = conn.execute("SELECT * FROM submissions WHERE id=?", (id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'status':'error','message':'Not found'}), 404
+    sub = dict(row)
+
+    loan_amount = float(body.get('loan_amount') if body.get('loan_amount') not in (None,'') else (sub.get('loan_amount') or 16000000))
+    down_payment = float(body.get('down_payment') if body.get('down_payment') not in (None,'') else (sub.get('down_payment') or 0))
+    tenure_months = int(body.get('tenure_months') if body.get('tenure_months') not in (None,'') else (sub.get('tenure_months') or 36))
+    insurance_raw = body.get('insurance_amount')
+    if insurance_raw in (None, ''):
+        insurance_amount = sub.get('insurance_amount')
+        if insurance_amount is None:
+            insurance_amount = round(loan_amount * 0.053, 3)
+    else:
+        insurance_amount = float(insurance_raw)
+
+    calc = calculate({'loan_amount': loan_amount, 'down_payment': down_payment,
+                       'tenure_months': tenure_months, 'employee_type': sub.get('employee_type')})
+    if not calc:
+        conn.close()
+        return jsonify({'status':'error','message':'Angka pinjaman tidak valid'}), 400
+
+    conn.execute("UPDATE submissions SET status_approval='Approved', approved_date=CURRENT_TIMESTAMP, "
+                 "loan_amount=?, down_payment=?, tenure_months=?, insurance_amount=?, "
+                 "principal=?, total_interest=?, monthly_installment=?, outstanding_balance=?, interest_rate=? "
+                 "WHERE id=?",
+                 (loan_amount, down_payment, tenure_months, insurance_amount,
+                  calc['principal'], calc['total_interest'], calc['monthly_installment'],
+                  calc['outstanding_balance'], calc['interest_rate'], id))
+
+    conn.execute("DELETE FROM loan_schedule WHERE submission_id=?", (id,))
+    start_raw = sub.get('tanggal_mulai') or ''
+    try:
+        start_date = datetime.strptime(start_raw[:10], '%Y-%m-%d').date()
+    except ValueError:
+        start_date = datetime.now().date()
+
+    balance = calc['outstanding_balance']
+    monthly = calc['monthly_installment']
+    for month in range(1, tenure_months + 1):
+        due = add_months(start_date, month)
+        balance = round(balance - monthly, 2)
+        conn.execute("INSERT INTO loan_schedule (submission_id, month_number, due_date, expected_amount, balance_after) "
+                     "VALUES (?,?,?,?,?)", (id, month, due.isoformat(), monthly, max(balance, 0)))
+
     conn.commit(); conn.close()
     return jsonify({'status':'ok'})
+
+@app.route('/api/schedule/mark-paid/<int:schedule_id>', methods=['POST'])
+@login_required
+def mark_paid(schedule_id):
+    if session.get('role') not in ['hr','manager']: return jsonify({'status':'error'}), 403
+    body = request.get_json(silent=True) or {}
+    paid = bool(body.get('paid', True))
+    conn = get_db()
+    if paid:
+        conn.execute("UPDATE loan_schedule SET is_paid=1, paid_date=CURRENT_TIMESTAMP WHERE id=?", (schedule_id,))
+    else:
+        conn.execute("UPDATE loan_schedule SET is_paid=0, paid_date=NULL WHERE id=?", (schedule_id,))
+    conn.commit(); conn.close()
+    return jsonify({'status':'ok'})
+
+@app.route('/reports/schedule')
+@login_required
+def schedule_report():
+    if session.get('role') not in ['hr','manager']:
+        return redirect(url_for('dashboard'))
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT ls.*, s.nama_lengkap, s.npk, s.cabang, s.type_motor "
+        "FROM loan_schedule ls JOIN submissions s ON s.id = ls.submission_id "
+        "WHERE s.status_approval = 'Approved' "
+        "ORDER BY s.nama_lengkap, ls.month_number"
+    ).fetchall()
+    conn.close()
+
+    today = datetime.now().date()
+    loans = {}
+    for r in rows:
+        r = dict(r)
+        sid = r['submission_id']
+        if sid not in loans:
+            loans[sid] = {'nama_lengkap': r['nama_lengkap'], 'npk': r['npk'],
+                          'cabang': r['cabang'], 'type_motor': r['type_motor'], 'rows': []}
+        due = datetime.strptime(r['due_date'], '%Y-%m-%d').date()
+        if r['is_paid']:
+            r['live_status'] = 'Paid'
+        elif due < today:
+            r['live_status'] = 'Overdue'
+        elif due.year == today.year and due.month == today.month:
+            r['live_status'] = 'Due this month'
+        else:
+            r['live_status'] = 'Upcoming'
+        r['due_date_display'] = due.strftime('%d %b %Y')
+        loans[sid]['rows'].append(r)
+
+    return render_template('schedule_report.html', loans=list(loans.values()), today=today.strftime('%d %B %Y'))
 
 @app.route('/api/reject/<int:id>', methods=['POST'])
 @login_required

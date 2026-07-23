@@ -12,6 +12,9 @@
     {% if session.role == 'hr' %}
     <a href="/settings" style="font-size:12px; color:var(--blue); text-decoration:none; border:1px solid #E5E7EB; border-radius:8px; padding:6px 12px;">⚙️ Pengaturan</a>
     {% endif %}
+    {% if session.role in ['hr','manager'] %}
+    <a href="/reports/schedule" style="font-size:12px; color:var(--blue); text-decoration:none; border:1px solid #E5E7EB; border-radius:8px; padding:6px 12px; margin-left:6px;">📅 Jadwal Angsuran</a>
+    {% endif %}
 </div>
 
 <div class="row g-2 mb-3">
@@ -58,13 +61,39 @@
                     <td>{% if s.status_approval == 'Approved' %}<span class="badge bg-success">Disetujui</span>{% elif s.status_approval == 'Rejected' %}<span class="badge bg-danger">Ditolak</span>{% else %}<span class="badge bg-warning text-dark">Tertunda</span>{% endif %}</td>
                     <td class="text-center" onclick="event.stopPropagation();">
                         {% if s.status_approval == 'Pending' %}
-                        <button onclick="approve({{ s.id }})" style="background:#28A745;color:white;border:none;border-radius:20px;padding:4px 10px;font-size:11px;cursor:pointer;">✓</button>
+                        <button onclick="toggleDetail({{ s.id }})" style="background:#1A3A5C;color:white;border:none;border-radius:20px;padding:4px 10px;font-size:11px;cursor:pointer;">Review</button>
                         <button onclick="reject({{ s.id }})" style="background:#DC3545;color:white;border:none;border-radius:20px;padding:4px 10px;font-size:11px;cursor:pointer;">✕</button>
                         {% endif %}
                     </td>
                 </tr>
                 <tr id="detail-{{ s.id }}" style="display:none; background:#F9FAFB;">
                     <td colspan="5" style="padding:12px;">
+                        {% if s.status_approval == 'Pending' %}
+                        <div class="row g-2" style="font-size:12px;">
+                            <div class="col-3">
+                                <small style="color:#999;">Jumlah Pinjaman (OTR)</small>
+                                <input type="text" id="edit_loan_{{ s.id }}" value="{{ s.loan_amount|default(16000000)|int }}" inputmode="numeric" style="width:100%; padding:6px; border:1px solid #E5E7EB; border-radius:6px; font-size:12px;">
+                            </div>
+                            <div class="col-3">
+                                <small style="color:#999;">Uang Muka (DP)</small>
+                                <input type="text" id="edit_dp_{{ s.id }}" value="{{ s.down_payment|default(0)|int }}" inputmode="numeric" style="width:100%; padding:6px; border:1px solid #E5E7EB; border-radius:6px; font-size:12px;">
+                            </div>
+                            <div class="col-3">
+                                <small style="color:#999;">Tenor (bulan)</small>
+                                <input type="text" id="edit_tenor_{{ s.id }}" value="{{ s.tenure_months|default(36)|int }}" inputmode="numeric" style="width:100%; padding:6px; border:1px solid #E5E7EB; border-radius:6px; font-size:12px;">
+                            </div>
+                            <div class="col-3">
+                                <small style="color:#999;">Insurance (untuk EDLIN)</small>
+                                <input type="text" id="edit_ins_{{ s.id }}" value="{{ (s.insurance_amount if s.insurance_amount is not none else (s.loan_amount|default(16000000))*0.053)|round|int }}" inputmode="numeric" style="width:100%; padding:6px; border:1px solid #E5E7EB; border-radius:6px; font-size:12px;">
+                            </div>
+                        </div>
+                        <label style="font-size:11px; color:#666; margin-top:8px; display:block;">
+                            <input type="checkbox" onchange="if(this.checked){document.getElementById('edit_ins_{{ s.id }}').value='0';}">
+                            Karyawan sudah punya asuransi sendiri (set Insurance = 0)
+                        </label>
+                        <button onclick="event.stopPropagation(); approveWithReview({{ s.id }})" style="margin-top:10px; background:#28A745;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer;">✓ Konfirmasi &amp; Setujui</button>
+                        <a href="/export-edlin/{{ s.id }}" onclick="event.stopPropagation();" style="margin-top:10px; margin-left:6px; display:inline-block; font-size:11px; color:var(--blue); text-decoration:none; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px;">📄 Pratinjau Edlin</a>
+                        {% else %}
                         <div class="row g-2" style="font-size:12px;">
                             <div class="col-3"><small style="color:#999;">Cabang</small><br>{{ s.cabang or '-' }}</div>
                             <div class="col-3"><small style="color:#999;">Pinjaman</small><br>Rp {{ "{:,.0f}".format(s.loan_amount|default(0)) }}</div>
@@ -80,6 +109,7 @@
                         </div>
                         <a href="/export-edlin/{{ s.id }}" onclick="event.stopPropagation();" style="display:inline-block; margin-top:8px; margin-right:8px; font-size:11px; color:var(--blue); text-decoration:none; border:1px solid #E5E7EB; border-radius:8px; padding:5px 10px;">📄 Edlin (pengajuan ini)</a>
                         <a href="/export-edlin-employee/{{ s.npk }}" onclick="event.stopPropagation();" style="display:inline-block; margin-top:8px; font-size:11px; color:var(--blue); text-decoration:none; border:1px solid #E5E7EB; border-radius:8px; padding:5px 10px;">📚 Edlin (semua riwayat NPK ini)</a>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -89,7 +119,11 @@
     {% else %}<p style="color:#999;text-align:center;padding:30px;">Belum ada pengajuan.</p>{% endif %}
 </div>
 
-<a href="/export-excel" style="display:block; width:100%; padding:14px; background:#fff; color:var(--blue); border:2px solid var(--blue); border-radius:12px; font-weight:600; font-size:15px; text-align:center; text-decoration:none;"><i class="fas fa-download"></i> Unduh Excel</a>
+<div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a href="/export-edlin/batch/Pending" style="flex:1; min-width:180px; padding:12px; background:#fff; color:#856404; border:2px solid #FFC107; border-radius:12px; font-weight:600; font-size:13px; text-align:center; text-decoration:none;">📦 Edlin — Semua Pending</a>
+    <a href="/export-edlin/batch/Approved" style="flex:1; min-width:180px; padding:12px; background:#fff; color:#155724; border:2px solid #28A745; border-radius:12px; font-weight:600; font-size:13px; text-align:center; text-decoration:none;">📦 Edlin — Semua Disetujui</a>
+    <a href="/export-excel" style="flex:1; min-width:180px; padding:12px; background:#fff; color:var(--blue); border:2px solid var(--blue); border-radius:12px; font-weight:600; font-size:13px; text-align:center; text-decoration:none;">📊 Data Mentah (semua kolom)</a>
+</div>
 
 {% else %}
 
@@ -126,7 +160,21 @@
 
 <script>
 function toggleDetail(id){var r=document.getElementById('detail-'+id);r.style.display=r.style.display==='none'?'table-row':'none';}
-function approve(id){if(confirm('Setujui?')){fetch('/api/approve/'+id,{method:'POST'}).then(()=>location.reload());}}
+function approveWithReview(id){
+    const loan_amount = parseFloat((document.getElementById('edit_loan_'+id).value||'').replace(/[^0-9]/g,''))||0;
+    const down_payment = parseFloat((document.getElementById('edit_dp_'+id).value||'').replace(/[^0-9]/g,''))||0;
+    const tenure_months = parseInt((document.getElementById('edit_tenor_'+id).value||'').replace(/[^0-9]/g,''))||36;
+    const insurance_amount = parseFloat((document.getElementById('edit_ins_'+id).value||'').replace(/[^0-9]/g,''))||0;
+    if(!confirm('Setujui pengajuan dengan angka ini? Jadwal angsuran akan dibuat otomatis.')) return;
+    fetch('/api/approve/'+id, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({loan_amount, down_payment, tenure_months, insurance_amount})
+    }).then(r=>r.json()).then(res=>{
+        if(res.status==='ok'){ location.reload(); }
+        else { alert('Gagal: ' + (res.message||'Kesalahan tidak diketahui')); }
+    });
+}
 function reject(id){
     const reason = prompt('Alasan penolakan (opsional, akan dilihat HR):');
     if(reason === null) return;

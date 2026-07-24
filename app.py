@@ -2,7 +2,9 @@ from flask import Flask, render_template, request, redirect, url_for, flash, sen
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import pandas as pd
-import os, re, json, sqlite3, uuid
+import os, re, json, uuid
+import psycopg2
+import psycopg2.extras
 from datetime import datetime, date
 from io import BytesIO
 from functools import wraps
@@ -40,10 +42,67 @@ def login_required(f):
         return f(*a, **k)
     return d
 
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+class Row:
+    """Mimics sqlite3.Row exactly: supports BOTH row[0] positional access
+    AND row['column'] named access, plus dict(row) conversion -- so no
+    query-calling code anywhere in the app needs to know the DB changed."""
+    def __init__(self, keys, values):
+        self._keys = keys
+        self._values = values
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._values[key]
+        return self._values[self._keys.index(key)]
+
+    def keys(self):
+        return self._keys
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __repr__(self):
+        return repr(dict(zip(self._keys, self._values)))
+
+class PGCursor:
+    def __init__(self, cursor):
+        self._cursor = cursor
+        self._keys = [d[0] for d in cursor.description] if cursor.description else []
+
+    def fetchone(self):
+        row = self._cursor.fetchone()
+        return Row(self._keys, row) if row is not None else None
+
+    def fetchall(self):
+        return [Row(self._keys, row) for row in self._cursor.fetchall()]
+
+    def __iter__(self):
+        for row in self._cursor:
+            yield Row(self._keys, row)
+
+class PGConn:
+    """Wraps a psycopg2 connection so the rest of the app can keep using
+    sqlite3-style '?' placeholders and .execute(...).fetchone()/.fetchall()
+    without every query in the app being rewritten individually."""
+    def __init__(self):
+        self._conn = psycopg2.connect(DATABASE_URL)
+
+    def execute(self, query, params=()):
+        pg_query = query.replace('?', '%s')
+        cur = self._conn.cursor()
+        cur.execute(pg_query, params)
+        return PGCursor(cur)
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._conn.close()
+
 def get_db():
-    conn = sqlite3.connect('data.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+    return PGConn()
 
 def get_setting(key, default=None):
     conn = get_db()
@@ -69,59 +128,45 @@ def set_setting(key, value, updated_by):
 def init_db():
     conn = get_db()
     conn.execute('''CREATE TABLE IF NOT EXISTS submissions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         application_id TEXT,
         npk TEXT, nama_lengkap TEXT, employee_type TEXT,
         jabatan_gol TEXT, departemen_cabang TEXT, cabang TEXT,
         type_motor TEXT, no_rangka TEXT, no_mesin TEXT, bpkb TEXT,
-        loan_amount REAL, down_payment REAL, tenure_months INTEGER,
-        interest_rate REAL, tanggal_mulai TEXT,
-        principal REAL, total_interest REAL,
-        monthly_installment REAL, outstanding_balance REAL,
+        loan_amount DOUBLE PRECISION, down_payment DOUBLE PRECISION, tenure_months INTEGER,
+        interest_rate DOUBLE PRECISION, tanggal_mulai TEXT,
+        principal DOUBLE PRECISION, total_interest DOUBLE PRECISION,
+        monthly_installment DOUBLE PRECISION, outstanding_balance DOUBLE PRECISION,
         remarks TEXT, signature TEXT,
         email TEXT, phone TEXT,
         status_approval TEXT DEFAULT 'Pending',
         rejection_reason TEXT,
         submitted_by TEXT, document_source TEXT,
-        submitted_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-        approved_date DATETIME
+        submitted_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        approved_date TIMESTAMP,
+        insurance_amount DOUBLE PRECISION
     )''')
-    for col, coltype in [('application_id', 'TEXT'), ('email', 'TEXT'),
-                          ('phone', 'TEXT'), ('rejection_reason', 'TEXT')]:
-        try:
-            conn.execute(f'ALTER TABLE submissions ADD COLUMN {col} {coltype}')
-        except sqlite3.OperationalError:
-            pass
     conn.execute('''CREATE TABLE IF NOT EXISTS employee_loans (
         npk TEXT PRIMARY KEY, nama_lengkap TEXT,
         email TEXT, phone TEXT,
         active_loan_count INTEGER DEFAULT 0,
-        total_loans_ever INTEGER DEFAULT 0, last_loan_date DATETIME
+        total_loans_ever INTEGER DEFAULT 0, last_loan_date TIMESTAMP
     )''')
-    for col, coltype in [('email', 'TEXT'), ('phone', 'TEXT')]:
-        try:
-            conn.execute(f'ALTER TABLE employee_loans ADD COLUMN {col} {coltype}')
-        except sqlite3.OperationalError:
-            pass
     conn.execute('''CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT,
         updated_by TEXT,
-        updated_at DATETIME
+        updated_at TIMESTAMP
     )''')
-    try:
-        conn.execute('ALTER TABLE submissions ADD COLUMN insurance_amount REAL')
-    except sqlite3.OperationalError:
-        pass
     conn.execute('''CREATE TABLE IF NOT EXISTS loan_schedule (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         submission_id INTEGER NOT NULL,
         month_number INTEGER NOT NULL,
         due_date TEXT NOT NULL,
-        expected_amount REAL,
-        balance_after REAL,
+        expected_amount DOUBLE PRECISION,
+        balance_after DOUBLE PRECISION,
         is_paid INTEGER DEFAULT 0,
-        paid_date DATETIME
+        paid_date TIMESTAMP
     )''')
     conn.commit(); conn.close()
 
@@ -390,9 +435,16 @@ def submit():
              data.get('remarks',''),data.get('signature',''),
              data.get('email',''),data.get('phone',''),
              session.get('name'),data.get('document_source','Manual')))
-        conn.execute('''INSERT OR REPLACE INTO employee_loans (npk, nama_lengkap, email, phone, active_loan_count, total_loans_ever, last_loan_date)
-                      VALUES (?,?,?,?,COALESCE((SELECT active_loan_count FROM employee_loans WHERE npk=?),0)+1,COALESCE((SELECT total_loans_ever FROM employee_loans WHERE npk=?),0)+1,?)''',
-                   (data.get('npk'),data.get('nama_lengkap'),data.get('email',''),data.get('phone',''),data.get('npk'),data.get('npk'),datetime.now()))
+        conn.execute('''INSERT INTO employee_loans (npk, nama_lengkap, email, phone, active_loan_count, total_loans_ever, last_loan_date)
+                      VALUES (?,?,?,?,1,1,?)
+                      ON CONFLICT (npk) DO UPDATE SET
+                          nama_lengkap = excluded.nama_lengkap,
+                          email = excluded.email,
+                          phone = excluded.phone,
+                          active_loan_count = employee_loans.active_loan_count + 1,
+                          total_loans_ever = employee_loans.total_loans_ever + 1,
+                          last_loan_date = excluded.last_loan_date''',
+                   (data.get('npk'),data.get('nama_lengkap'),data.get('email',''),data.get('phone',''),datetime.now()))
         conn.commit(); conn.close()
         return jsonify({'status':'success','application_id':application_id,'calculations':calc})
     except Exception as e:
